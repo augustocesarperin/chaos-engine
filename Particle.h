@@ -14,7 +14,7 @@ public:
     void resolveCollision(Particle& other);
     void keepInBounds(float width, float height);
     
-    // Getters/Setters
+    
     sf::Vector2f getPosition() const { return m_shape.getPosition(); }
     void setPosition(const sf::Vector2f& position) { m_shape.setPosition(position); }
     
