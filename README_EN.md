@@ -2,7 +2,7 @@
 
 A particle simulator in a window with some crumbs of physics implemented. Made to explore C++ and SFML, not for cutting-edge science.
 
-![Particle Simulator Demo](gravacao.gif)
+![Particle Simulator Demo](gifrec.gif)
 
 ## Features
 

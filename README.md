@@ -1,8 +1,10 @@
 # Simulador de Partículas
 
+**Autor: Augusto César Perin**
+
 Um simulador de partículas numa janela com algumas migalhas de física implementada. Feito para explorar C++ e SFML, não para ciência de ponta.
 
-![Demonstração do Simulador de Partículas](gravacao.gif)
+![Demonstração do Simulador de Partículas](gifrec.gif)
 
 ## Funcionalidades
 

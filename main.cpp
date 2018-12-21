@@ -1,3 +1,11 @@
+/*
+ * Particle Simulator
+ * 
+ * Developed by: Augusto César Perin
+ * 
+ * A 2D particle simulator with basic physics interactions
+ */
+
 #include <SFML/Graphics.hpp>
 #include "ParticleSystem.h"
 #include <iostream>
@@ -23,7 +31,7 @@ int main()
     sf::Vector2f mousePositionWindow;
     
     
-    std::string windowTitle = "Simulador de Partículas 2D";
+    std::string windowTitle = "Simulador de Partículas 2D - por Augusto César Perin";
     sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), sf::String::fromUtf8(windowTitle.begin(), windowTitle.end()));
     window.setFramerateLimit(60); 
     
@@ -42,11 +50,14 @@ int main()
     sf::Text signature;
     signature.setFont(font);
     signature.setCharacterSize(12); 
-    signature.setFillColor(sf::Color(220, 220, 220)); 
-    signature.setStyle(sf::Text::Bold); 
-    std::string devText = "Desenvolvido por Augusto César Perin";
+    signature.setFillColor(sf::Color(180, 180, 180, 200)); // Cor mais suave com um pouco de transparência
+    signature.setStyle(sf::Text::Bold | sf::Text::Italic); // Negrito e itálico
+    std::string devText = "Augusto César Perin";
     signature.setString(sf::String::fromUtf8(devText.begin(), devText.end()));
-    signature.setPosition(10.f, HEIGHT - 30.f); 
+    
+    // Posicionar no canto inferior direito
+    sf::FloatRect signatureBounds = signature.getLocalBounds();
+    signature.setPosition(WIDTH - signatureBounds.width - 15.f, HEIGHT - 25.f); 
     
     ParticleSystem particleSystem(WIDTH, HEIGHT);
     particleSystem.generateRandomParticles(NUM_PARTICLES, 1.0f, 10.0f);
@@ -158,7 +169,7 @@ int main()
         if (mouseForceEnabled) {
             particleSystem.applyMouseForce(mousePositionWindow, mouseForceStrength, mouseForceAttractMode);
         }
-        /
+        
         
         particleSystem.update(deltaTime);
         
@@ -187,7 +198,6 @@ int main()
         
         // Desenhar interface
         window.draw(instructions);
-        window.draw(signature); 
         
         window.display();
     }
