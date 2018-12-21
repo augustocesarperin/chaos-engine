@@ -16,6 +16,7 @@ public:
     
     // (+ repulsão, - atração)
     void applyInteractiveForces(float strength);
+    void applyMouseForce(const sf::Vector2f& mousePosition, float strength, bool attractMode);
     
     void generateRandomParticles(int count, float minMass, float maxMass);
     

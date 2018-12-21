@@ -3,18 +3,29 @@
 #include <iostream>
 #include <random>
 #include <string>
+#include <algorithm>
 
 int main()
 {
     const int WIDTH = 800;
     const int HEIGHT = 600;
-    float desiredGravitationalAcceleration = 150.0f; // Aceleração gravitacional desejada (ajuste conforme necessário)
+    float desiredGravitationalAcceleration = 150.0f;
     const float REPULSION = 5.0f;
     const int NUM_PARTICLES = 50;
+
+    // Variaveis do modo com o mouse afetando as particulas
+    bool mouseForceEnabled = false;
+    bool mouseForceAttractMode = true; 
+    float mouseForceStrength = 75000.0f;
+    const float minMouseForceStrength = 5000.0f;
+    const float maxMouseForceStrength = 500000.0f;
+    const float mouseForceStrengthStep = 10000.0f;
+    sf::Vector2f mousePositionWindow;
+    
     
     std::string windowTitle = "Simulador de Partículas 2D";
     sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), sf::String::fromUtf8(windowTitle.begin(), windowTitle.end()));
-    window.setFramerateLimit(60); // evita CPU 100%
+    window.setFramerateLimit(60); 
     
     sf::Font font;
     if (!font.loadFromFile("C:\\Windows\\Fonts\\arial.ttf")) {
@@ -23,9 +34,19 @@ int main()
     
     sf::Text instructions;
     instructions.setFont(font);
-    instructions.setCharacterSize(12);
+    instructions.setCharacterSize(12); 
     instructions.setFillColor(sf::Color::White);
     instructions.setPosition(10.f, 10.f);
+    
+    
+    sf::Text signature;
+    signature.setFont(font);
+    signature.setCharacterSize(12); 
+    signature.setFillColor(sf::Color(220, 220, 220)); 
+    signature.setStyle(sf::Text::Bold); 
+    std::string devText = "Desenvolvido por Augusto César Perin";
+    signature.setString(sf::String::fromUtf8(devText.begin(), devText.end()));
+    signature.setPosition(10.f, HEIGHT - 30.f); 
     
     ParticleSystem particleSystem(WIDTH, HEIGHT);
     particleSystem.generateRandomParticles(NUM_PARTICLES, 1.0f, 10.0f);
@@ -38,10 +59,11 @@ int main()
     while (window.isOpen())
     {
         float deltaTime = clock.restart().asSeconds();
-        
         if (deltaTime > 0.1f) deltaTime = 0.1f;
+
         
-        // Processa eventos
+        mousePositionWindow = static_cast<sf::Vector2f>(sf::Mouse::getPosition(window));
+        
         sf::Event event;
         while (window.pollEvent(event))
         {
@@ -50,8 +72,8 @@ int main()
             
             if (event.type == sf::Event::MouseButtonPressed)
             {
-                sf::Vector2i mousePos = sf::Mouse::getPosition(window);
-                sf::Vector2f position(static_cast<float>(mousePos.x), static_cast<float>(mousePos.y));
+                
+                sf::Vector2f position = mousePositionWindow;
                 
                 std::random_device rd;
                 std::mt19937 gen(rd());
@@ -91,6 +113,32 @@ int main()
                         // Gerar mais partículas aleatórias
                         particleSystem.generateRandomParticles(20, 1.0f, 8.0f);
                         break;
+
+                    
+                    case sf::Keyboard::M:
+                        mouseForceEnabled = !mouseForceEnabled;
+                        break;
+                    
+                    case sf::Keyboard::N:
+                        if (mouseForceEnabled) { 
+                            mouseForceAttractMode = !mouseForceAttractMode;
+                        }
+                        break;
+
+                    case sf::Keyboard::Add: 
+                    case sf::Keyboard::Equal: 
+                        if (mouseForceEnabled) {
+                            mouseForceStrength = std::min(maxMouseForceStrength, mouseForceStrength + mouseForceStrengthStep);
+                        }
+                        break;
+
+                    case sf::Keyboard::Subtract: 
+                    case sf::Keyboard::Hyphen:   
+                         if (mouseForceEnabled) {
+                            mouseForceStrength = std::max(minMouseForceStrength, mouseForceStrength - mouseForceStrengthStep);
+                        }
+                        break;
+                    
                     
                     default:
                         break;
@@ -106,26 +154,40 @@ int main()
             particleSystem.applyInteractiveForces(REPULSION);
         }
         
+       
+        if (mouseForceEnabled) {
+            particleSystem.applyMouseForce(mousePositionWindow, mouseForceStrength, mouseForceAttractMode);
+        }
+        /
+        
         particleSystem.update(deltaTime);
         
+        // Update UI 
+        std::string mouseForceStatus = mouseForceEnabled ? "ON" : "OFF";
+        std::string mouseForceModeStatus = mouseForceAttractMode ? "Attract" : "Repel";
+
         std::string statusText = 
             "Controles:\n"
             "Clique esquerdo: Adicionar partícula\n"
             "Clique direito: Adicionar partícula grande\n"
             "G: Ativar/desativar gravidade (" + std::string(gravityEnabled ? "ON" : "OFF") + ")\n"
-            "R: Ativar/desativar repulsão (" + std::string(repulsionEnabled ? "ON" : "OFF") + ")\n"
-            "C: Limpar todas as partículas\n"
-            "Espaço: Gerar partículas aleatórias\n\n"
+            "R: Repulsao entre particulas (" + std::string(repulsionEnabled ? "ON" : "OFF") + ")\n"
+            "M: Forca do Mouse (" + mouseForceStatus + ")\n"
+            " N: Modo Forca Mouse (" + mouseForceModeStatus + ")\n"
+            " +/-: Intensidade Forca Mouse (" + std::to_string(static_cast<int>(mouseForceStrength)) + ")\n"
+            "C: Limpar todas as particulas\n"
+            "Espaco: Gerar particulas aleatorias\n\n"
             "Partículas: " + std::to_string(particleSystem.getParticleCount()) +
-            "\nFPS: " + std::to_string(1.0f / (deltaTime > 0.0001f ? deltaTime : 0.0001f));
+            "\nFPS: " + std::to_string(static_cast<int>(1.0f / (deltaTime > 0.0001f ? deltaTime : 0.0001f)));
         instructions.setString(sf::String::fromUtf8(statusText.begin(), statusText.end()));
         
-        window.clear(sf::Color(20, 20, 30)); // Azul escuro
+        window.clear(sf::Color(20, 20, 30)); 
         
         particleSystem.draw(window);
         
         // Desenhar interface
         window.draw(instructions);
+        window.draw(signature); 
         
         window.display();
     }

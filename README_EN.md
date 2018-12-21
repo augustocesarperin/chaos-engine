@@ -1,10 +1,10 @@
 # Particle Simulator
 
-A 2D particle simulator. Moves circles in a window with basic physics. Made to explore C++ and SFML, not for cutting-edge science.
+A particle simulator in a window with some crumbs of physics implemented. Made to explore C++ and SFML, not for cutting-edge science.
 
 ![Particle Simulator Demo](gravacao.gif)
 
-## Core Features
+## Features
 
 *   **Particles (`Particle`):**
     Circles with `mass`, `radius`, `position`, `velocity`, and `color`. Mass and radius affect collisions and gravity.
@@ -15,19 +15,23 @@ A 2D particle simulator. Moves circles in a window with basic physics. Made to e
 *   **Physical Interactions:**
     *   **Gravity:** Constant vertical acceleration (adjustable, toggle on/off).
     *   **Collisions:** Detection by circle overlap; basic elastic resolution with position correction.
-    *   **Repulsion (Experimental):** Force between pairs, based on the inverse square of the distance (adjustable, toggle on/off).
+    *   **Particle Repulsion:** Force between pairs, based on the inverse square of the distance (adjustable, toggle on/off).
+    *   **Mouse Force:** Attraction or repulsion of particles in relation to the mouse position (adjustable, toggle on/off).
 
 ## Interaction
 
 *   **Mouse:**
     *   `Left Click`: Standard particle.
     *   `Right Click`: Larger/heavier particle.
+    *   `Position`: Center of attraction/repulsion when mouse force is active.
 *   **Keyboard:**
     *   `G`: Toggles gravity.
-    *   `R`: Toggles repulsion.
+    *   `R`: Toggles particle repulsion.
+    *   `M`: Toggles mouse force.
+    *   `N`: Switches between attraction and repulsion modes for mouse force.
+    *   `+/-`: Adjusts mouse force strength.
     *   `C`: Clears particles.
-    *   `Up/Down Arrows`: Adjusts gravity.
-    *   `Left/Right Arrows`: Adjusts repulsion.
+    *   `Space`: Generates random particles.
     *   `ESC`: Quits.
 
 ## Compilation
@@ -39,5 +43,4 @@ A 2D particle simulator. Moves circles in a window with basic physics. Made to e
 
 Performance may vary with many particles/interactions - Use at your own risk.
 
----
-Augusto César Perin
+~It works on my machine~

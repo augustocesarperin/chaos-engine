@@ -55,7 +55,7 @@ void ParticleSystem::applyInteractiveForces(float strength) {
             // Evitar divisão por zero
             if (distance < 1.0f) distance = 1.0f;
             
-            // Calcular força usando lei do inverso do quadrado (similar à gravidade)
+        
             float forceMagnitude = strength * m_particles[i].getMass() * m_particles[j].getMass() / (distance * distance);
             
             // Direção da força 
@@ -67,6 +67,35 @@ void ParticleSystem::applyInteractiveForces(float strength) {
             m_particles[i].applyForce(force);
             m_particles[j].applyForce(-force);
         }
+    }
+}
+
+
+void ParticleSystem::applyMouseForce(const sf::Vector2f& mousePosition, float strength, bool attractMode) {
+    for (auto& particle : m_particles) {
+        sf::Vector2f direction = mousePosition - particle.getPosition();
+        float distanceSquared = direction.x * direction.x + direction.y * direction.y;
+
+        
+        if (distanceSquared < 1.0f) { 
+            continue; 
+        }
+
+        float distance = std::sqrt(distanceSquared);
+        
+       
+        sf::Vector2f normalizedDirection = direction / distance;
+
+        
+        float forceMagnitude = strength / distance;
+
+        sf::Vector2f force = normalizedDirection * forceMagnitude;
+
+        if (!attractMode) { 
+            force = -force;
+        }
+
+        particle.applyForce(force);
     }
 }
 
