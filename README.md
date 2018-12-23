@@ -2,7 +2,7 @@
 
 Um simulador de partículas numa janela com algumas migalhas de física implementada. Feito para explorar C++ e SFML, não para ciência de ponta.
 
-![Demonstração do Simulador de Partículas](gravacao.gif)
+![Demonstração do Simulador de Partículas](gifrec.gif)
 
 ## Funcionalidades
 
@@ -34,10 +34,10 @@ Um simulador de partículas numa janela com algumas migalhas de física implemen
     *   `Espaço`: Gera partículas aleatórias.
     *   `ESC`: Sai.
 
-## Compilação
+## Run
 
 *   **Requisitos:** C++ (11+), SFML (>=2.5).
-*   **Execução:** Use o arquivo executável `ParticleSimulator.exe` ou compile com `compile.bat`.
+*   Use o arquivo executável `ParticleSimulator.exe` ou compile com `compile.bat`.
 
 ## Considerações
 
