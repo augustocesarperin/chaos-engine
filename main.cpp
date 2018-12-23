@@ -50,12 +50,12 @@ int main()
     sf::Text signature;
     signature.setFont(font);
     signature.setCharacterSize(12); 
-    signature.setFillColor(sf::Color(180, 180, 180, 200)); // Cor mais suave com um pouco de transparência
-    signature.setStyle(sf::Text::Bold | sf::Text::Italic); // Negrito e itálico
+    signature.setFillColor(sf::Color(180, 180, 180, 200)); 
+    signature.setStyle(sf::Text::Bold | sf::Text::Italic); 
     std::string devText = "Augusto César Perin";
     signature.setString(sf::String::fromUtf8(devText.begin(), devText.end()));
     
-    // Posicionar no canto inferior direito
+  
     sf::FloatRect signatureBounds = signature.getLocalBounds();
     signature.setPosition(WIDTH - signatureBounds.width - 15.f, HEIGHT - 25.f); 
     
@@ -89,10 +89,37 @@ int main()
                 std::random_device rd;
                 std::mt19937 gen(rd());
                 std::uniform_real_distribution<float> velDist(-50.0f, 50.0f);
-                std::uniform_int_distribution<int> colorDist(100, 255);
+                // Sistema de cores aprimorado
+                std::uniform_int_distribution<int> colorMode(0, 10); // Diferentes modos de cor
                 
                 sf::Vector2f velocity(velDist(gen), velDist(gen));
-                sf::Color color(colorDist(gen), colorDist(gen), colorDist(gen));
+                sf::Color color;
+                
+                // Escolhe entre cores predefinidas vibrantes ou cores aleatórias
+                int mode = colorMode(gen);
+                if (mode <= 2) {
+                    // Cores predefinidas vibrantes
+                    const sf::Color vibrantColors[] = {
+                        sf::Color(255, 0, 0),     // Vermelho
+                        sf::Color(0, 255, 0),     // Verde
+                        sf::Color(0, 0, 255),     // Azul
+                        sf::Color(255, 255, 0),   // Amarelo
+                        sf::Color(255, 0, 255),   // Magenta
+                        sf::Color(0, 255, 255),   // Ciano
+                        sf::Color(255, 128, 0),   // Laranja
+                        sf::Color(128, 0, 255)    // Roxo
+                    };
+                    std::uniform_int_distribution<int> colorIndex(0, 7);
+                    color = vibrantColors[colorIndex(gen)];
+                } else if (mode <= 5) {
+                    // Cores pastel (mais suaves)
+                    std::uniform_int_distribution<int> pastelDist(180, 255);
+                    color = sf::Color(pastelDist(gen), pastelDist(gen), pastelDist(gen));
+                } else {
+                    // Cores totalmente aleatórias (incluindo cores mais escuras)
+                    std::uniform_int_distribution<int> fullColorDist(20, 255);
+                    color = sf::Color(fullColorDist(gen), fullColorDist(gen), fullColorDist(gen));
+                }
                 
                 if (event.mouseButton.button == sf::Mouse::Left) {
                     particleSystem.addParticle(2.0f, position, velocity, color);

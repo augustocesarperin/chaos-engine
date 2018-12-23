@@ -2,7 +2,7 @@
 
 A particle simulator in a window with some crumbs of physics implemented. Made to explore C++ and SFML, not for cutting-edge science.
 
-![Particle Simulator Demo](gifrec.gif)
+![Particle Simulator Demo](gravacao.gif)
 
 ## Features
 
@@ -34,10 +34,10 @@ A particle simulator in a window with some crumbs of physics implemented. Made t
     *   `Space`: Generates random particles.
     *   `ESC`: Quits.
 
-## Compilation
+## 
 
 *   **Requirements:** C++ (11+), SFML (>=2.5).
-*   **Build:** Tested with g++/MinGW-w64 (Windows). Use `Makefile` or `compile_run.bat`. SFML must be accessible.
+*   Use the provided `ParticleSimulator.exe` or compile with `compile.bat`.
 
 ## Considerations
 

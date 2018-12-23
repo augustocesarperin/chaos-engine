@@ -1,4 +1,8 @@
+# Permitir apenas o executável do simulador
 *.exe
+!ParticleSimulator.exe
+# Permitir DLLs do SFML
+!*.dll
 *.o
 *.obj
 build/

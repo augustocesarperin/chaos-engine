@@ -1,10 +1,8 @@
 # Simulador de Partículas
 
-**Autor: Augusto César Perin**
-
 Um simulador de partículas numa janela com algumas migalhas de física implementada. Feito para explorar C++ e SFML, não para ciência de ponta.
 
-![Demonstração do Simulador de Partículas](gifrec.gif)
+![Demonstração do Simulador de Partículas](gravacao.gif)
 
 ## Funcionalidades
 
@@ -39,7 +37,7 @@ Um simulador de partículas numa janela com algumas migalhas de física implemen
 ## Compilação
 
 *   **Requisitos:** C++ (11+), SFML (>=2.5).
-*   **Build:** Testado com g++/MinGW-w64 (Windows). Use `Makefile` ou `compile_run.bat`. SFML deve estar acessível.
+*   **Execução:** Use o arquivo executável `ParticleSimulator.exe` ou compile com `compile.bat`.
 
 ## Considerações
 
