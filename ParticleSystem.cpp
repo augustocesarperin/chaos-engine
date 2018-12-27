@@ -17,7 +17,13 @@ void ParticleSystem::removeParticle(size_t index) {
 }
 
 void ParticleSystem::update(float deltaTime) {
+    const float dragCoefficient = 0.0005f; // Resistência do ar - ajuste este valor conforme necessário
+    
     for (auto& particle : m_particles) {
+        
+        particle.applyDrag(dragCoefficient);
+        
+       
         particle.update(deltaTime);
         particle.keepInBounds(m_width, m_height);
     }

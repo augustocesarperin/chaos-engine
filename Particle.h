@@ -8,6 +8,7 @@ public:
 
     void update(float dt);
     void applyForce(const sf::Vector2f& f);
+    void applyDrag(float dragCoefficient);
     
     bool checkCollision(const Particle& other) const;
     

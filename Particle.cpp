@@ -26,6 +26,24 @@ void Particle::applyForce(const sf::Vector2f& f) {
     m_accel += sf::Vector2f(f.x / mass, f.y / mass);
 }
 
+void Particle::applyDrag(float dragCoefficient) {
+    // Calcular a vel atual
+    float speedSquared = vel.x * vel.x + vel.y * vel.y;
+    
+    if (speedSquared > 0.1f) { // Ignorar vel baixas
+        float speed = std::sqrt(speedSquared);
+        
+        
+        float dragMagnitude = dragCoefficient * speedSquared;
+        
+        
+        sf::Vector2f dragForce = -dragMagnitude * sf::Vector2f(vel.x/speed, vel.y/speed);
+        
+        
+        applyForce(dragForce);
+    }
+}
+
 bool Particle::checkCollision(const Particle& other) const {
     sf::Vector2f deltaPos = getPosition() - other.getPosition();
     float distance = std::sqrt(deltaPos.x * deltaPos.x + deltaPos.y * deltaPos.y);
@@ -72,20 +90,44 @@ void Particle::keepInBounds(float width, float height) {
     
     if (position.x - radius < 0) {
         m_shape.setPosition(radius, position.y);
-        vel.x = -vel.x * 0.8f;
+        
+        // Calcular coeficiente de restituição baseado na velocidade de impacto
+        float impactSpeed = std::abs(vel.x);
+        float restitution = 0.9f - (impactSpeed / 300.0f); // Diminui com velocidade alta
+        restitution = std::max(0.1f, std::min(0.9f, restitution)); // Limitar entre 0.1 e 0.9
+        
+        vel.x = -vel.x * restitution;
     }
     else if (position.x + radius > width) {
         m_shape.setPosition(width - radius, position.y);
-        vel.x = -vel.x * 0.8f;
+        
+        // Calcular coeficiente de restituição baseado na velocidade de impacto
+        float impactSpeed = std::abs(vel.x);
+        float restitution = 0.9f - (impactSpeed / 300.0f); // Diminui com velocidade alta
+        restitution = std::max(0.1f, std::min(0.9f, restitution)); // Limitar entre 0.1 e 0.9
+        
+        vel.x = -vel.x * restitution;
     }
     
     if (position.y - radius < 0) {
         m_shape.setPosition(position.x, radius);
-        vel.y = -vel.y * 0.8f;
+        
+        // Calcular coeficiente de restituição baseado na velocidade de impacto
+        float impactSpeed = std::abs(vel.y);
+        float restitution = 0.9f - (impactSpeed / 300.0f); // Diminui com velocidade alta
+        restitution = std::max(0.1f, std::min(0.9f, restitution)); // Limitar entre 0.1 e 0.9
+        
+        vel.y = -vel.y * restitution;
     }
     else if (position.y + radius > height) {
         m_shape.setPosition(position.x, height - radius);
-        vel.y = -vel.y * 0.8f;
+        
+        // Calcular coeficiente de restituição baseado na velocidade de impacto
+        float impactSpeed = std::abs(vel.y);
+        float restitution = 0.9f - (impactSpeed / 300.0f); // Diminui com velocidade alta
+        restitution = std::max(0.1f, std::min(0.9f, restitution)); // Limitar entre 0.1 e 0.9
+        
+        vel.y = -vel.y * restitution;
     }
 }
 

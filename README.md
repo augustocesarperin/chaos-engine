@@ -14,15 +14,15 @@ Um simulador de partículas numa janela com algumas migalhas de física implemen
 
 *   **Interações Físicas:**
     *   **Gravidade:** Aceleração vertical constante (ajustável, liga/desliga).
-    *   **Colisões:** Detecção por sobreposição de círculos; resolução elástica básica com correção de posição.
-    *   **Repulsão entre Partículas:** Força entre pares, baseada no inverso do quadrado da distância (ajustável, liga/desliga).
+    *   **Colisões:** Detecção por sobreposição de círculos
+    *   **Repulsão entre Partículas:** (ajustável, liga/desliga).
     *   **Força do Mouse:** Atração ou repulsão de partículas em relação à posição do mouse (ajustável, liga/desliga).
 
 ## Interação
 
 *   **Mouse:**
     *   `Clique Esquerdo`: Partícula padrão.
-    *   `Clique Direito`: Partícula maior/pesada.
+    *   `Clique Direito`: Partícula pesada.
     *   `Posição`: Centro de atração/repulsão quando a força do mouse está ativada.
 *   **Teclado:**
     *   `G`: Liga/desliga gravidade.

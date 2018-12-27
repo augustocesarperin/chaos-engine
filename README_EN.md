@@ -14,8 +14,8 @@ A particle simulator in a window with some crumbs of physics implemented. Made t
 
 *   **Physical Interactions:**
     *   **Gravity:** Constant vertical acceleration (adjustable, toggle on/off).
-    *   **Collisions:** Detection by circle overlap; basic elastic resolution with position correction.
-    *   **Particle Repulsion:** Force between pairs, based on the inverse square of the distance (adjustable, toggle on/off).
+    *   **Collisions:** Detection by circle overlap.
+    *   **Particle Repulsion:** (adjustable, toggle on/off).
     *   **Mouse Force:** Attraction or repulsion of particles in relation to the mouse position (adjustable, toggle on/off).
 
 ## Interaction
