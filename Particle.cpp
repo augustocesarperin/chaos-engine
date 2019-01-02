@@ -13,12 +13,19 @@ Particle::Particle(float mass, const sf::Vector2f& position, const sf::Vector2f&
 }
 
 void Particle::update(float dt) {
-    vel += m_accel * dt;
+    // Armazenar posição atual
+    sf::Vector2f currentPos = m_shape.getPosition();
+    
+    // Integração de Verlet
+    sf::Vector2f newPos = currentPos + vel * dt + 0.5f * m_accel * dt * dt;
+    m_shape.setPosition(newPos);
+t
+    vel = (newPos - currentPos) / dt;
+    
+    // Aplica o amortecimento
     vel *= DAMPING;
     
-    m_shape.move(vel * dt);
-    
-    // Reset para a próxima frame
+    // Reset póximo frame
     m_accel = sf::Vector2f(0.0f, 0.0f);
 }
 
@@ -27,19 +34,13 @@ void Particle::applyForce(const sf::Vector2f& f) {
 }
 
 void Particle::applyDrag(float dragCoefficient) {
-    // Calcular a vel atual
+    // Calcular a vel 
     float speedSquared = vel.x * vel.x + vel.y * vel.y;
     
-    if (speedSquared > 0.1f) { // Ignorar vel baixas
+    if (speedSquared > 0.1f) { // Ignorar vel
         float speed = std::sqrt(speedSquared);
-        
-        
         float dragMagnitude = dragCoefficient * speedSquared;
-        
-        
         sf::Vector2f dragForce = -dragMagnitude * sf::Vector2f(vel.x/speed, vel.y/speed);
-        
-        
         applyForce(dragForce);
     }
 }
@@ -63,7 +64,7 @@ void Particle::resolveCollision(Particle& other) {
     
     if (velAlongNormal > 0) return;
     
-    float e = 0.8f; // elasticidade da colisão
+    float e = 0.8f; // elasticidade
     
     float j = -(1 + e) * velAlongNormal;
     j /= 1/mass + 1/other.mass;
@@ -91,20 +92,18 @@ void Particle::keepInBounds(float width, float height) {
     if (position.x - radius < 0) {
         m_shape.setPosition(radius, position.y);
         
-        // Calcular coeficiente de restituição baseado na velocidade de impacto
         float impactSpeed = std::abs(vel.x);
-        float restitution = 0.9f - (impactSpeed / 300.0f); // Diminui com velocidade alta
-        restitution = std::max(0.1f, std::min(0.9f, restitution)); // Limitar entre 0.1 e 0.9
+        float restitution = 0.9f - (impactSpeed / 300.0f); 
+        restitution = std::max(0.1f, std::min(0.9f, restitution)); 
         
         vel.x = -vel.x * restitution;
     }
     else if (position.x + radius > width) {
         m_shape.setPosition(width - radius, position.y);
         
-        // Calcular coeficiente de restituição baseado na velocidade de impacto
         float impactSpeed = std::abs(vel.x);
-        float restitution = 0.9f - (impactSpeed / 300.0f); // Diminui com velocidade alta
-        restitution = std::max(0.1f, std::min(0.9f, restitution)); // Limitar entre 0.1 e 0.9
+        float restitution = 0.9f - (impactSpeed / 300.0f); 
+        restitution = std::max(0.1f, std::min(0.9f, restitution)); 
         
         vel.x = -vel.x * restitution;
     }
@@ -112,20 +111,18 @@ void Particle::keepInBounds(float width, float height) {
     if (position.y - radius < 0) {
         m_shape.setPosition(position.x, radius);
         
-        // Calcular coeficiente de restituição baseado na velocidade de impacto
         float impactSpeed = std::abs(vel.y);
-        float restitution = 0.9f - (impactSpeed / 300.0f); // Diminui com velocidade alta
-        restitution = std::max(0.1f, std::min(0.9f, restitution)); // Limitar entre 0.1 e 0.9
+        float restitution = 0.9f - (impactSpeed / 300.0f); 
+        restitution = std::max(0.1f, std::min(0.9f, restitution));
         
         vel.y = -vel.y * restitution;
     }
     else if (position.y + radius > height) {
         m_shape.setPosition(position.x, height - radius);
         
-        // Calcular coeficiente de restituição baseado na velocidade de impacto
         float impactSpeed = std::abs(vel.y);
-        float restitution = 0.9f - (impactSpeed / 300.0f); // Diminui com velocidade alta
-        restitution = std::max(0.1f, std::min(0.9f, restitution)); // Limitar entre 0.1 e 0.9
+        float restitution = 0.9f - (impactSpeed / 300.0f); 
+        restitution = std::max(0.1f, std::min(0.9f, restitution)); 
         
         vel.y = -vel.y * restitution;
     }

@@ -1,46 +1,45 @@
 # Particle Simulator
 
-A particle simulator in a window with some crumbs of physics implemented. Made to explore C++ and SFML, not for cutting-edge science.
+A simulator with some physics. Made to play around with C++ & SFML, and, who knows, use it in future projects that probably won't happen.
 
 ![Particle Simulator Demo](gifrec.gif)
 
 ## Features
+* **Physics** - Verlet integration for realistic movement and collision simulation
+* **Interactions** - Gravitation, repulsion and force fields configurable in real-time
 
-*   **Particles (`Particle`):**
-    Circles with `mass`, `radius`, `position`, `velocity`, and `color`. Mass and radius affect collisions and gravity.
+## Controls
 
-*   **Particle System (`ParticleSystem`):**
-    Manages particles: creates, removes, applies forces (gravity), handles collisions, and updates states (`deltaTime`).
+**Mouse:**
+- Left button: creates normal particle
+- Right button: creates heavy particle
 
-*   **Physical Interactions:**
-    *   **Gravity:** Constant vertical acceleration (adjustable, toggle on/off).
-    *   **Collisions:** Detection by circle overlap.
-    *   **Particle Repulsion:** (adjustable, toggle on/off).
-    *   **Mouse Force:** Attraction or repulsion of particles in relation to the mouse position (adjustable, toggle on/off).
+**Keyboard:**
+- `G`: toggles gravity
+- `R`: toggles repulsion
+- `M`: toggles mouse force
+- `N`: switches between attract and repel
+- `+/-`: adjusts force intensity
+- `C`: clears all particles
+- `Space`: creates random particles
+- `ESC`: exits
 
-## Interaction
+## How to Use
 
-*   **Mouse:**
-    *   `Left Click`: Standard particle.
-    *   `Right Click`: Larger/heavier particle.
-    *   `Position`: Center of attraction/repulsion when mouse force is active.
-*   **Keyboard:**
-    *   `G`: Toggles gravity.
-    *   `R`: Toggles particle repulsion.
-    *   `M`: Toggles mouse force.
-    *   `N`: Switches between attraction and repulsion modes for mouse force.
-    *   `+/-`: Adjusts mouse force strength.
-    *   `C`: Clears particles.
-    *   `Space`: Generates random particles.
-    *   `ESC`: Quits.
+**Run directly:**
+```
+ParticleSimulator.exe
+```
 
-## 
+**Compile and run:**
+```
+compile.bat
+```
 
-*   **Requirements:** C++ (11+), SFML (>=2.5).
-*   Use the provided `ParticleSimulator.exe` or compile with `compile.bat`.
-
-## Considerations
+**Requirements:** C++ 11+ and SFML 2.5+
 
 Performance may vary with many particles/interactions - Use at your own risk.
 
-~It works on my machine~
+~Works on my machine~
+
+Augusto Cesar Perin - 2018 ~ 2019

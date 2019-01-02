@@ -3,7 +3,6 @@
  * 
  * Developed by: Augusto César Perin
  * 
- * A 2D particle simulator with basic physics interactions
  */
 
 #include <SFML/Graphics.hpp>
@@ -31,7 +30,7 @@ int main()
     sf::Vector2f mousePositionWindow;
     
     
-    std::string windowTitle = "Simulador de Partículas 2D - por Augusto César Perin";
+    std::string windowTitle = "Simulador de Partículas - por Augusto César Perin";
     sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), sf::String::fromUtf8(windowTitle.begin(), windowTitle.end()));
     window.setFramerateLimit(60); 
     
@@ -73,7 +72,8 @@ int main()
         if (deltaTime > 0.1f) deltaTime = 0.1f;
 
         
-        mousePositionWindow = static_cast<sf::Vector2f>(sf::Mouse::getPosition(window));
+        // Converter coordenadas do mouse da janela para a view/mundo
+        mousePositionWindow = window.mapPixelToCoords(sf::Mouse::getPosition(window));
         
         sf::Event event;
         while (window.pollEvent(event))
@@ -89,16 +89,13 @@ int main()
                 std::random_device rd;
                 std::mt19937 gen(rd());
                 std::uniform_real_distribution<float> velDist(-50.0f, 50.0f);
-                // Sistema de cores aprimorado
-                std::uniform_int_distribution<int> colorMode(0, 10); // Diferentes modos de cor
+                            std::uniform_int_distribution<int> colorMode(0, 10); // Modos de cor: 0-2 (vibrantes), 3-5 (pastel), 6-10 (aleatórias)
                 
                 sf::Vector2f velocity(velDist(gen), velDist(gen));
                 sf::Color color;
                 
-                // Escolhe entre cores predefinidas vibrantes ou cores aleatórias
                 int mode = colorMode(gen);
                 if (mode <= 2) {
-                    // Cores predefinidas vibrantes
                     const sf::Color vibrantColors[] = {
                         sf::Color(255, 0, 0),     // Vermelho
                         sf::Color(0, 255, 0),     // Verde
@@ -112,11 +109,11 @@ int main()
                     std::uniform_int_distribution<int> colorIndex(0, 7);
                     color = vibrantColors[colorIndex(gen)];
                 } else if (mode <= 5) {
-                    // Cores pastel (mais suaves)
+                    
                     std::uniform_int_distribution<int> pastelDist(180, 255);
                     color = sf::Color(pastelDist(gen), pastelDist(gen), pastelDist(gen));
                 } else {
-                    // Cores totalmente aleatórias (incluindo cores mais escuras)
+                    
                     std::uniform_int_distribution<int> fullColorDist(20, 255);
                     color = sf::Color(fullColorDist(gen), fullColorDist(gen), fullColorDist(gen));
                 }
@@ -206,8 +203,8 @@ int main()
 
         std::string statusText = 
             "Controles:\n"
-            "Clique esquerdo: Adicionar partícula\n"
-            "Clique direito: Adicionar partícula grande\n"
+            "Botão esquerdo: Adicionar partícula\n"
+            "Botão direito: Adicionar partícula grande\n"
             "G: Ativar/desativar gravidade (" + std::string(gravityEnabled ? "ON" : "OFF") + ")\n"
             "R: Repulsao entre particulas (" + std::string(repulsionEnabled ? "ON" : "OFF") + ")\n"
             "M: Forca do Mouse (" + mouseForceStatus + ")\n"
@@ -223,7 +220,7 @@ int main()
         
         particleSystem.draw(window);
         
-        // Desenhar interface
+        
         window.draw(instructions);
         
         window.display();
