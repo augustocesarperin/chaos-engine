@@ -2,11 +2,17 @@
 
 A simulator with some physics. Made to play around with C++ & SFML, and, who knows, use it in future projects that probably won't happen.
 
-![Particle Simulator Demo](gifrec.gif)
 
-## Features
-* **Physics** - Verlet integration for realistic movement and collision simulation
-* **Interactions** - Gravitation, repulsion and force fields configurable in real-time
+<br>
+
+<img src="gifrec.gif" alt="Particle Simulator Demo" width="650"/>
+
+<br>
+
+## Verlet
+
+The simulator uses Verlet integration for movement calculations. Unlike the Euler method (used in the initial versions), the Verlet method prevents particles from passing through each other when they're moving fast, or when the FPS drops. The system also simulates energy loss in collisions, preventing particles from bouncing around like there's no tomorrow.
+In summary: Verlet method doesn't just consider current position and velocity, but also remembers previous position and acceleration to predict where the particle should be, as if each particle had a "memory". This makes movements smoother and more realistic.
 
 ## Controls
 
@@ -26,15 +32,21 @@ A simulator with some physics. Made to play around with C++ & SFML, and, who kno
 
 ## How to Use
 
-**Run directly:**
+### Compile:
+```
+compile.bat
+```
+
+### Run:
 ```
 ParticleSimulator.exe
 ```
 
-**Compile and run:**
+### Or using the script:
 ```
-compile.bat
+run.bat
 ```
+
 
 **Requirements:** C++ 11+ and SFML 2.5+
 
@@ -42,4 +54,6 @@ Performance may vary with many particles/interactions - Use at your own risk.
 
 ~Works on my machine~
 
-Augusto Cesar Perin - 2018 ~ 2019
+<div align="right">
+  <sub><a href="https://github.com/augustoperin">Augusto Cesar Perin</a> | 2018-2019</sub>
+</div>
