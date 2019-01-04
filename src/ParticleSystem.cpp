@@ -6,6 +6,10 @@ ParticleSystem::ParticleSystem(float width, float height)
     : m_width(width), m_height(height) {
 }
 
+ParticleSystem::~ParticleSystem() {
+    // Destrutor vazio, não há recursos externos para liberar
+}
+
 void ParticleSystem::setWindowSize(float width, float height) {
     m_width = width;
     m_height = height;
@@ -70,6 +74,63 @@ void ParticleSystem::applyInteractiveForces(float strength) {
             // Se força > 0: repulsão, se força< 0: atração
             m_particles[i].applyForce(force);
             m_particles[j].applyForce(-force);
+        }
+    }
+}
+
+void ParticleSystem::handleCollisions(float restitution) {
+    // Verifica todas as combinações possíveis de partículas
+    for (size_t i = 0; i < m_particles.size(); ++i) {
+        for (size_t j = i + 1; j < m_particles.size(); ++j) {
+            Particle& p1 = m_particles[i];
+            Particle& p2 = m_particles[j];
+            
+            // Calcula a distância entre os centros das partículas
+            sf::Vector2f delta = p1.getPosition() - p2.getPosition();
+            float distanceSquared = delta.x * delta.x + delta.y * delta.y;
+            float radiusSum = p1.getRadius() + p2.getRadius();
+            
+            // Verifica se as partículas estão colidindo (distância menor que a soma dos raios)
+            if (distanceSquared < radiusSum * radiusSum) {
+                float distance = std::sqrt(distanceSquared);
+                
+                // Evita divisão por zero
+                if (distance < 0.01f) {
+                    distance = 0.01f;
+                }
+                
+                // Direção normal da colisão
+                sf::Vector2f normal = delta / distance;
+                
+                // Calcula a velocidade relativa na direção normal
+                sf::Vector2f v1 = p1.getVelocity();
+                sf::Vector2f v2 = p2.getVelocity();
+                sf::Vector2f relativeVelocity = v1 - v2;
+                float normalVelocity = relativeVelocity.x * normal.x + relativeVelocity.y * normal.y;
+                
+                // Se as partículas estão se afastando, não há colisão a ser resolvida
+                if (normalVelocity > 0) {
+                    continue;
+                }
+                
+                // Calcula impulso com base nas massas e coeficiente de restituição
+                float m1 = p1.getMass();
+                float m2 = p2.getMass();
+                float impulse = -(1.0f + restitution) * normalVelocity / (1.0f/m1 + 1.0f/m2);
+                
+                // Aplica impulso às velocidades
+                sf::Vector2f impulseVector = normal * impulse;
+                p1.setVelocity(v1 + impulseVector / m1);
+                p2.setVelocity(v2 - impulseVector / m2);
+                
+                // Corrige posições para evitar sobreposição (penetration resolution)
+                float penetration = radiusSum - distance;
+                float pushRatio1 = m2 / (m1 + m2);
+                float pushRatio2 = m1 / (m1 + m2);
+                
+                p1.setPosition(p1.getPosition() + normal * penetration * pushRatio1);
+                p2.setPosition(p2.getPosition() - normal * penetration * pushRatio2);
+            }
         }
     }
 }

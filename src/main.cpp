@@ -88,6 +88,8 @@ int main()
     
     bool gravityEnabled = true;
     bool repulsionEnabled = false;
+    bool collisionsEnabled = true;
+    float collisionRestitution = 0.8f;  // Coeficiente de restituição (1.0 = perfeitamente elástico)
     
     sf::Clock clock;
     
@@ -181,6 +183,18 @@ int main()
                     
                     case sf::Keyboard::R:
                         repulsionEnabled = !repulsionEnabled;
+                        if (repulsionEnabled) {
+                            // Desativa colisões se repulsão estiver ativa
+                            collisionsEnabled = false;
+                        }
+                        break;
+                        
+                    case sf::Keyboard::L:
+                        collisionsEnabled = !collisionsEnabled;
+                        if (collisionsEnabled) {
+                            // Desativa repulsão se colisões estiverem ativas
+                            repulsionEnabled = false;
+                        }
                         break;
                     
                     case sf::Keyboard::C:
@@ -250,6 +264,10 @@ int main()
         if (repulsionEnabled) {
             particleSystem.applyInteractiveForces(REPULSION);
         }
+        
+        if (collisionsEnabled) {
+            particleSystem.handleCollisions(collisionRestitution);
+        }
         if (mouseForceEnabled) {
             particleSystem.applyMouseForce(mousePositionWindow, mouseForceStrength, mouseForceAttractMode);
         }
@@ -265,6 +283,7 @@ int main()
             "Botão direito: Adicionar partícula grande\n"
             "G: Ativar/desativar gravidade (" + std::string(gravityEnabled ? "ON" : "OFF") + ")\n"
             "R: Repulsao entre particulas (" + std::string(repulsionEnabled ? "ON" : "OFF") + ")\n"
+            "L: Colisões físicas entre partículas (" + std::string(collisionsEnabled ? "ON" : "OFF") + ")\n"
             "T: Alternar tipo de partícula (" + particleTypeName + ")\n"
             "M: Forca do Mouse (" + mouseForceStatus + ")\n"
             " N: Modo Forca Mouse (" + mouseForceModeStatus + ")\n"

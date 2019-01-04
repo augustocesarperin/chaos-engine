@@ -6,6 +6,7 @@
 class ParticleSystem {
 public:
     ParticleSystem(float width, float height);
+    ~ParticleSystem();
     
     Particle& addParticle(float mass, const sf::Vector2f& position, const sf::Vector2f& velocity, const sf::Color& color);
     void removeParticle(size_t index);
@@ -23,6 +24,8 @@ public:
     
     // Atualiza as dimensões da área de simulação quando a janela é alterada
     void setWindowSize(float width, float height);
+    
+    void handleCollisions(float restitution = 0.8f);
     
     size_t getParticleCount() const { return m_particles.size(); }
 

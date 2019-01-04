@@ -3,6 +3,8 @@
 #include <vector>
 #include <string>
 #include <random>
+#include <map>
+#include <memory>
 
 Particle::Particle(float mass, const sf::Vector2f& position, const sf::Vector2f& velocity, const sf::Color& color)
     : vel(velocity), m_accel(0.0f, 0.0f), mass(mass), m_texture(nullptr), m_type(ParticleType::Original) {
@@ -19,6 +21,27 @@ Particle::Particle(float mass, const sf::Vector2f& position, const sf::Vector2f&
     
     // (carrega textura e configura sprite)
     setParticleType(m_type);
+}
+
+// Cache local de texturas para substituir o TextureManager
+static std::map<std::string, std::shared_ptr<sf::Texture>> textureCache;
+
+// Função auxiliar para carregar/gerenciar texturas
+static sf::Texture* getTexture(const std::string& filename) {
+    // Procura a textura no cache
+    auto it = textureCache.find(filename);
+    if (it != textureCache.end()) {
+        return it->second.get();
+    }
+    
+    // Se não existe, carrega a textura
+    auto texture = std::make_shared<sf::Texture>();
+    if (texture->loadFromFile("assets/" + filename)) {
+        textureCache[filename] = texture;
+        return texture.get();
+    }
+    
+    return nullptr;
 }
 
 void Particle::setParticleType(ParticleType type) {
@@ -39,7 +62,7 @@ void Particle::setParticleType(ParticleType type) {
     int choice = distrib(gen);
     textureFile = std::to_string(choice + 1) + ".png";
     
-    m_texture = TextureManager::getTexture(textureFile);
+    m_texture = getTexture(textureFile);  // Usa nossa função local ao invés de TextureManager
     if (m_texture) {
         m_sprite.setTexture(*m_texture);
         
