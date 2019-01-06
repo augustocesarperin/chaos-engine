@@ -12,6 +12,7 @@
 #include <random>
 #include <string>
 #include <algorithm>
+#include <vector>
 
 int main()
 {
@@ -21,8 +22,17 @@ int main()
     const float REPULSION = 5.0f;
     const int NUM_PARTICLES = 50;
 
+    // Variáveis para controle de física
+    bool gravityEnabled = true;
+    bool repulsionEnabled = false;
+    bool collisionsEnabled = true;
+    float collisionRestitution = 0.8f;  // Coeficiente de restituição (1.0 = perfeitamente elástico)
+    
+    // Configurações de simulação
+    
     ParticleType currentParticleType = ParticleType::Original;
     std::string particleTypeName = "Original";
+    
 
  // variáveis da força que o mouse aplica às partículas
     bool mouseForceEnabled = false;
@@ -64,8 +74,25 @@ int main()
     
     
     sf::Font font;
-    if (!font.loadFromFile("C:\\Windows\\Fonts\\arial.ttf")) {
-        std::cerr << "Erro ao carregar fonte!" << std::endl;
+    // Lista de possíveis fontes do sistema em diferentes plataformas
+    std::vector<std::string> fontPaths = {
+        "C:\\Windows\\Fonts\\arial.ttf",          // Windows
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", // Linux
+        "/Library/Fonts/Arial.ttf",                // macOS
+        "assets/fonts/arial.ttf",                  // Diretório local de fontes
+        "arial.ttf"                                // Diretório atual
+    };
+    
+    bool fontLoaded = false;
+    for (const auto& path : fontPaths) {
+        if (font.loadFromFile(path)) {
+            fontLoaded = true;
+            break;
+        }
+    }
+    
+    if (!fontLoaded) {
+        std::cerr << "Aviso: Não foi possível carregar nenhuma fonte. Textos podem não ser exibidos corretamente." << std::endl;
     }
     
     sf::Text instructions;
@@ -86,11 +113,7 @@ int main()
     
     window.setMouseCursorVisible(false);
     
-    bool gravityEnabled = true;
-    bool repulsionEnabled = false;
-    bool collisionsEnabled = true;
-    float collisionRestitution = 0.8f;  // Coeficiente de restituição (1.0 = perfeitamente elástico)
-    
+    // Clock para controle de tempo
     sf::Clock clock;
     
     while (window.isOpen())
@@ -100,6 +123,8 @@ int main()
 
         
         mousePositionWindow = window.mapPixelToCoords(sf::Mouse::getPosition(window));
+        
+        sf::Vector2i mousePos = sf::Mouse::getPosition(window);
         
         sf::Event event;
         while (window.pollEvent(event))
@@ -251,6 +276,15 @@ int main()
                         // Alterna entre os tipos de cursor disponíveis
                         mousart.cycleCursorType();
                         break;
+                        
+                    case sf::Keyboard::S:
+                        // Mostrar/esconder instruções
+                        if (instructions.getFillColor().a > 0)
+                            instructions.setFillColor(sf::Color::Transparent);
+                        else
+                            instructions.setFillColor(sf::Color::White);
+                        break;
+                        
                     default:
                         break;
                 }
@@ -284,6 +318,8 @@ int main()
             "G: Ativar/desativar gravidade (" + std::string(gravityEnabled ? "ON" : "OFF") + ")\n"
             "R: Repulsao entre particulas (" + std::string(repulsionEnabled ? "ON" : "OFF") + ")\n"
             "L: Colisões físicas entre partículas (" + std::string(collisionsEnabled ? "ON" : "OFF") + ")\n"
+            "K: Alternar tipo de cursor\n"
+            "S: Mostrar/Esconder controles\n"
             "T: Alternar tipo de partícula (" + particleTypeName + ")\n"
             "M: Forca do Mouse (" + mouseForceStatus + ")\n"
             " N: Modo Forca Mouse (" + mouseForceModeStatus + ")\n"
@@ -299,7 +335,12 @@ int main()
         window.draw(backgroundSprite);
         
         particleSystem.draw(window);
+        
+        // Exibe as instruções (visíveis ou transparentes de acordo com o estado)
         window.draw(instructions);
+        
+
+        
         sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
         mousart.update(mousePosition, window);
         mousart.draw(window);

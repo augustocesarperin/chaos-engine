@@ -1,6 +1,13 @@
 #pragma once
 #include <SFML/Graphics.hpp>
 #include "TextureManager.h"
+#include <deque>
+#include <vector>
+#include <cmath>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 enum class ParticleType {
     Original,  // Partículas originais
@@ -38,6 +45,10 @@ public:
 
 private:
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
+    void updateTrailColor();
+    
+    static void RGBtoHSV(uint8_t r, uint8_t g, uint8_t b, float& h, float& s, float& v);
+    static void HSVtoRGB(float h, float s, float v, uint8_t& r, uint8_t& g, uint8_t& b);
 
 private:
     sf::Sprite m_sprite;
@@ -46,7 +57,17 @@ private:
     float radius;           
     sf::Vector2f vel;      
     sf::Vector2f m_accel;  
-    float mass;            
-    // Configurei valores pra deixar a gravidade mais perceptivel, mas isso pode (e deve) ser alterado.
+    float mass;
+    
     static constexpr float DAMPING = 0.995f; 
+    
+    // Rastros
+    std::deque<std::pair<sf::Vector2f, sf::Color>> m_trail;
+    static constexpr int MAX_TRAIL_LENGTH = 15;
+    static constexpr float TRAIL_FADE_RATE = 0.85f;
+    
+    // Variação de cores
+    sf::Color m_baseColor;
+    float m_colorPulsePhase;
+    bool m_useSpeedColor;
 };

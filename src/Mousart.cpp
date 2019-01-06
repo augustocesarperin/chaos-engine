@@ -19,7 +19,6 @@ Mousart::Mousart() : m_isForceActive(false), m_hotspot(0, 0), m_currentType(Curs
 }
 
 bool Mousart::initialize() {
-    // Carregar cursor padrão
     if (!m_cursorTextures[static_cast<size_t>(CursorType::DEFAULT)].loadFromFile("assets/retromouse.png")) {
         std::cerr << "Erro ao carregar assets/retromouse.png" << std::endl;
         
@@ -46,7 +45,6 @@ bool Mousart::initialize() {
         texture.setSmooth(true);
     }
     
-    // Configurar sprite inicial
     m_cursorSprite.setTexture(m_cursorTextures[static_cast<size_t>(m_currentType)], true);
     
     // Obter tamanho da textura
@@ -98,8 +96,7 @@ void Mousart::updateTipOffset() {
 }
 
 void Mousart::cycleCursorType() {
-    // Não mudar se estiver no modo de força
-    if (m_isForceActive) return;
+    // Permitir troca de cursor independente do modo de força
     
     // Avança para o próximo tipo (excluindo FORCE que é controlado por setForceMode)
     int nextType = static_cast<int>(m_currentType) + 1;
@@ -129,18 +126,13 @@ Mousart::CursorType Mousart::getCurrentType() const {
 void Mousart::setForceMode(bool isActive) {
     m_isForceActive = isActive;
     
-    if (m_isForceActive) {
-        m_cursorSprite.setTexture(m_cursorTextures[static_cast<size_t>(CursorType::FORCE)]);
-        // Aplicar a escala do cursor de força
-        float forceScale = m_cursorScales[static_cast<size_t>(CursorType::FORCE)];
-        m_cursorSprite.setScale(forceScale, forceScale);
-    } else {
-        m_cursorSprite.setTexture(m_cursorTextures[static_cast<size_t>(m_currentType)]);
-        // Restaurar a escala do cursor atual
-        applyCurrentScale();
-    }
+    // NÃO alterar o sprite do cursor, apenas armazenar o estado de força
+    // A troca de cursores deve ocorrer apenas com a tecla K (cycleCursorType)
     
-    // Atualizar o offset da ponta para o tipo de cursor atual/force
+    // Manter a mesma textura e escala, independentemente do modo de força
+    // O cursor de força foi removido como sprite separado - usar apenas efeito visual
+    
+    // Atualizar o offset da ponta para o tipo de cursor atual
     updateTipOffset();
 }
 
