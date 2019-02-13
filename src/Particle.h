@@ -4,14 +4,15 @@
 #include <deque>
 #include <vector>
 #include <cmath>
+#include <memory>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
 enum class ParticleType {
-    Original,  // Partículas originais
-    Crystal,   // Cristais neon
+    Original,
+    Crystal,
 };
 
 class Particle : public sf::Drawable {
@@ -35,6 +36,7 @@ public:
     void setVelocity(const sf::Vector2f& velocity) { vel = velocity; }
     
     float getMass() const { return mass; }
+    void setMass(float newMass) { mass = newMass; }
     float getRadius() const { return radius; }
     
     sf::Color getColor() const { return m_sprite.getColor(); }
@@ -42,6 +44,13 @@ public:
     
     void setParticleType(ParticleType type);
     ParticleType getParticleType() const { return m_type; }
+    
+    size_t getPoolIndex() const { return poolIndex; }
+    void setPoolIndex(size_t index) { poolIndex = index; }
+    
+    void renderTo(sf::RenderTarget& target, sf::RenderStates states = sf::RenderStates::Default) const {
+        draw(target, states);
+    }
 
 private:
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
@@ -52,22 +61,30 @@ private:
 
 private:
     sf::Sprite m_sprite;
-    sf::Texture* m_texture;  
+    std::shared_ptr<sf::Texture> m_texture;  
     ParticleType m_type;
     float radius;           
     sf::Vector2f vel;      
     sf::Vector2f m_accel;  
     float mass;
     
-    static constexpr float DAMPING = 0.995f; 
+    static constexpr float DAMPING = 0.998f; 
     
-    // Rastros
-    std::deque<std::pair<sf::Vector2f, sf::Color>> m_trail;
     static constexpr int MAX_TRAIL_LENGTH = 15;
     static constexpr float TRAIL_FADE_RATE = 0.85f;
     
-    // Variação de cores
+    struct TrailPoint {
+        sf::Vector2f position;
+        sf::Color color;
+    };
+    
+    TrailPoint m_trailBuffer[MAX_TRAIL_LENGTH];
+    int m_trailHead = 0;
+    int m_trailSize = 0;
+    
     sf::Color m_baseColor;
     float m_colorPulsePhase;
     bool m_useSpeedColor;
+
+    size_t poolIndex;
 };

@@ -4,12 +4,11 @@
 
 class Mousart {
 public:
-    // Enum para tipos de cursor
     enum class CursorType {
         DEFAULT,
         FORCE,
         SKULL,
-        COUNT // Usado para contar tipos
+        COUNT 
     };
 
 private:
@@ -28,11 +27,9 @@ private:
     sf::Vector2f m_hotspot;
     
     sf::Vector2f m_tipOffset;
-    
     // Aplica a escala apropriada para o cursor atual
     void applyCurrentScale();
     
-    // Atualiza o offset da ponta do cursor baseado no tipo atual
     void updateTipOffset(); 
 
 public:
@@ -43,12 +40,9 @@ public:
     void update(const sf::Vector2i& mousePosition, const sf::RenderWindow& window);
     void setForceMode(bool isActive);
     void draw(sf::RenderWindow& window);
-    
-    // Alterna para o próximo tipo de cursor
     void cycleCursorType();
     CursorType getCurrentType() const;
     
-    // Retorna o offset necessário para posicionar as partículas na ponta do cursor
     // Considera a resolução atual da janela para garantir consistencia
     sf::Vector2f getCursorTipOffset(const sf::RenderWindow& window) const;
 };

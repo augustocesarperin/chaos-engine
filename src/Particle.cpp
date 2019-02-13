@@ -1,4 +1,6 @@
 #include "Particle.h"
+#include "Utility.h"
+#include <iostream>
 #include <cmath>
 #include <vector>
 #include <string>
@@ -11,8 +13,6 @@ Particle::Particle(float mass, const sf::Vector2f& position, const sf::Vector2f&
       m_colorPulsePhase(0.0f), m_useSpeedColor(true) {
     
     radius = 5.0f + mass * 0.5f;
-    
-    // Melhorar a cor para torná-la mais vibrante
     sf::Color enhancedColor = color;
     
     float h, s, v;
@@ -31,23 +31,24 @@ Particle::Particle(float mass, const sf::Vector2f& position, const sf::Vector2f&
     
     m_sprite.setPosition(position);
     
-    m_trail.push_front(std::make_pair(position, enhancedColor));
+    m_trailBuffer[0] = {position, enhancedColor};
+    m_trailHead = 0;
+    m_trailSize = 1;
     
     setParticleType(m_type);
 }
 
-// Usando TextureManager para gerenciar texturas centralizadamente
-// O cache e carregamento agora é feito pelo TextureManager
-
 void Particle::setParticleType(ParticleType type) {
+    // Preservar a cor atual antes de mudar o tipo
+    sf::Color currentColor = m_sprite.getColor();
+    
     m_type = type;
     
     if (type == ParticleType::Original) {
         m_texture = nullptr;
+        updateTrailColor();
         return;
     }
-    
-    // Selecionar textura para crystal
     std::string textureFile;
     
     static std::random_device rd;
@@ -57,8 +58,13 @@ void Particle::setParticleType(ParticleType type) {
     int choice = distrib(gen);
     textureFile = std::to_string(choice + 1) + ".png";
     
-    m_texture = TextureManager::getTexture("assets/" + textureFile);  // Usa TextureManager centralizado
-    if (m_texture) {
+    m_texture = TextureManager::getTexture(textureFile);
+    
+    if (!m_texture || m_texture->getSize().x == 0) {
+        m_texture = TextureManager::getTexture("assets/" + textureFile);
+    }
+    
+    if (m_texture && m_texture->getSize().x > 0) {
         m_sprite.setTexture(*m_texture);
         
         sf::Vector2u textureSize = m_texture->getSize();
@@ -68,7 +74,24 @@ void Particle::setParticleType(ParticleType type) {
         
         float scale = (radius * scaleFactor) / std::max(textureSize.x, textureSize.y);
         m_sprite.setScale(scale, scale);
+    
+        currentColor.a = 255;
+        m_sprite.setColor(currentColor);
+    } else {
+        std::cerr << "Não foi possível carregar a textura: " << textureFile << std::endl;
+        m_type = ParticleType::Original;
+        m_texture = nullptr;
+        
+        sf::Color fallbackColor = m_baseColor;
+        fallbackColor.r = std::max(100u, (unsigned int)fallbackColor.r);
+        fallbackColor.g = std::max(100u, (unsigned int)fallbackColor.g);
+        fallbackColor.b = std::max(100u, (unsigned int)fallbackColor.b);
+        fallbackColor.a = 255;
+        m_sprite.setColor(fallbackColor);
     }
+    
+    // Atualizar a cor com base na velocidade
+    updateTrailColor();
 }
 
 // Função auxiliar para conversão de RGB para HSV
@@ -137,29 +160,34 @@ void Particle::update(float dt) {
     const float dy = newPos.y - currentPos.y;
     const float distanceSq = dx*dx + dy*dy;
     
-    if (distanceSq > minDistanceSq || m_trail.empty()) {
+    if (distanceSq > minDistanceSq || m_trailSize == 0) {
         // Pegar a cor atual para o rastro
         sf::Color trailColor = m_sprite.getColor();
-        trailColor.a = 200;  // Semi-transparente
+        trailColor.a = 200;  
         
-        m_trail.push_front(std::make_pair(newPos, trailColor));
+        m_trailBuffer[m_trailHead].position = newPos;
+        m_trailBuffer[m_trailHead].color = trailColor;
         
-        if (m_trail.size() > MAX_TRAIL_LENGTH) {
-            m_trail.pop_back();
+        m_trailHead = (m_trailHead + 1) % MAX_TRAIL_LENGTH;
+        
+        // Atualizar tamanho atual do rastro
+        if (m_trailSize < MAX_TRAIL_LENGTH) {
+            m_trailSize++;
         }
     }
     
     // Atualizar cores do rastro - fading
-    for (size_t i = 1; i < m_trail.size(); ++i) {
-        sf::Color& color = m_trail[i].second;
-        color.a = static_cast<uint8_t>(color.a * TRAIL_FADE_RATE);
+    for (int i = 1; i < m_trailSize; ++i) {
+        // Calcular índice atual considerando o buffer circular
+        int idx = (m_trailHead - i + MAX_TRAIL_LENGTH) % MAX_TRAIL_LENGTH;
+        m_trailBuffer[idx].color.a = static_cast<uint8_t>(m_trailBuffer[idx].color.a * TRAIL_FADE_RATE);
     }
     
     // Fase de pulsação de cor
     m_colorPulsePhase += dt * 2.0f;
     if (m_colorPulsePhase > 2.0f * M_PI) m_colorPulsePhase -= 2.0f * M_PI;
     
-    // Rotacionar o sprite para efeito visual
+    // Rotacionar o sprite p efeito visual
     static float rotationSpeed = 15.0f;
     m_sprite.rotate(rotationSpeed * dt);
 }
@@ -201,21 +229,52 @@ void Particle::resolveCollision(Particle& other) {
     
     if (velAlongNormal > 0) return;
     
-    float e = 0.8f; // elasticidade
-
+    // Coeficiente de restituição adaptativo baseado na proximidade das partículas
+    float e = 0.8f; 
+    
+    // Ajustar coeficiente baseado na distância
+    float radiusSum = getRadius() + other.getRadius();
+    float distanceRatio = distance / radiusSum;
+    
+    // Se as partículas estão muito próximas, reduZIR elasticidade
+    if (distanceRatio < 0.9f) {
+        e *= distanceRatio * 0.9f;
+    }
+    
     float j = -(1 + e) * velAlongNormal;
     j /= 1/mass + 1/other.mass;
     
     sf::Vector2f impulse = sf::Vector2f(j * normal.x, j * normal.y);
-    vel += sf::Vector2f(impulse.x / mass, impulse.y / mass);
-    other.vel -= sf::Vector2f(impulse.x / other.mass, impulse.y / other.mass);
+    
+    sf::Vector2f newVel1 = vel + sf::Vector2f(impulse.x / mass, impulse.y / mass);
+    sf::Vector2f newVel2 = other.vel - sf::Vector2f(impulse.x / other.mass, impulse.y / other.mass);
+    
+    const float maxVelocity = 350.0f;
+    
+    float vel1Mag = std::sqrt(newVel1.x*newVel1.x + newVel1.y*newVel1.y);
+    if (vel1Mag > maxVelocity) {
+        newVel1 = newVel1 * (maxVelocity / vel1Mag);
+    }
+    
+    float vel2Mag = std::sqrt(newVel2.x*newVel2.x + newVel2.y*newVel2.y);
+    if (vel2Mag > maxVelocity) {
+        newVel2 = newVel2 * (maxVelocity / vel2Mag);
+    }
+    
+    vel = newVel1;
+    other.vel = newVel2;
     
     float overlap = getRadius() + other.getRadius() - distance;
     if (overlap > 0) {
-        float moveRatio1 = getRadius() / (getRadius() + other.getRadius());
-        float moveRatio2 = other.getRadius() / (getRadius() + other.getRadius());
+        // Ajuste de posição baseado em massa
+        float totalMass = mass + other.mass;
+        float moveRatio1 = other.mass / totalMass;
+        float moveRatio2 = mass / totalMass;
         
-        sf::Vector2f correction = normal * overlap;
+        // Aplicação mais suave da correção quando há muitas partículas
+        float correctionFactor = std::min(1.0f, distanceRatio + 0.1f);
+        sf::Vector2f correction = normal * overlap * correctionFactor;
+        
         m_sprite.setPosition(getPosition() + correction * moveRatio1);
         other.m_sprite.setPosition(other.getPosition() - correction * moveRatio2);
     }
@@ -223,146 +282,201 @@ void Particle::resolveCollision(Particle& other) {
 
 void Particle::keepInBounds(float width, float height) {
     sf::Vector2f position = m_sprite.getPosition();
+    float friction = 0.0f; 
+    bool collision = false;
     
+
+    const float BASE_RESTITUTION = 0.85f; 
+    const float IMPACT_SCALING = 350.0f;  
+    const float MIN_RESTITUTION = 0.15f;  // Valor mínimo de restituição
+    const float MAX_RESTITUTION = 0.85f;  // Valor máximo de restituição
+    const float GROUND_FRICTION = 0.96f;  // Fricção c chao
+    const float WALL_FRICTION = 0.98f;    // Fricção menor paredes laterais
+    
+    // Colisão com a parede esquerda
     if (position.x - radius < 0) {
-        m_sprite.setPosition(radius, position.y);
+        // Evita que a partícula fique presa na borda
+        m_sprite.setPosition(radius + 0.1f, position.y);
         
+        // Calcular restituição baseada na velocidade de impacto
         float impactSpeed = std::abs(vel.x);
-        float restitution = 0.9f - (impactSpeed / 300.0f); 
-        restitution = std::max(0.1f, std::min(0.9f, restitution)); 
+        float speedFactor = impactSpeed / IMPACT_SCALING;
+        float restitution = BASE_RESTITUTION - speedFactor;
+        restitution = std::max(MIN_RESTITUTION, std::min(MAX_RESTITUTION, restitution));
         
         vel.x = -vel.x * restitution;
+        vel.y *= WALL_FRICTION; 
+        collision = true;
     }
+    // Colisão com a parede direita
     else if (position.x + radius > width) {
-        m_sprite.setPosition(width - radius, position.y);
+        m_sprite.setPosition(width - radius - 0.1f, position.y);
         
         float impactSpeed = std::abs(vel.x);
-        float restitution = 0.9f - (impactSpeed / 300.0f);
-        restitution = std::max(0.1f, std::min(0.9f, restitution)); 
+        float speedFactor = impactSpeed / IMPACT_SCALING;
+        float restitution = BASE_RESTITUTION - speedFactor;
+        restitution = std::max(MIN_RESTITUTION, std::min(MAX_RESTITUTION, restitution));
         
         vel.x = -vel.x * restitution;
+        vel.y *= WALL_FRICTION;
+        collision = true;
     }
     
+    // Colisão teto
     if (position.y - radius < 0) {
-        m_sprite.setPosition(position.x, radius);
+        m_sprite.setPosition(position.x, radius + 0.1f);
         
         float impactSpeed = std::abs(vel.y);
-        float restitution = 0.9f - (impactSpeed / 300.0f);
-        restitution = std::max(0.1f, std::min(0.9f, restitution)); 
+        float speedFactor = impactSpeed / IMPACT_SCALING;
+        float restitution = BASE_RESTITUTION - speedFactor;
+        restitution = std::max(MIN_RESTITUTION, std::min(MAX_RESTITUTION, restitution));
         
         vel.y = -vel.y * restitution;
+        vel.x *= WALL_FRICTION; 
+        collision = true;
     }
     else if (position.y + radius > height) {
-        m_sprite.setPosition(position.x, height - radius);
+        m_sprite.setPosition(position.x, height - radius - 0.1f);
         
         float impactSpeed = std::abs(vel.y);
-        float restitution = 0.9f - (impactSpeed / 300.0f);
-        restitution = std::max(0.1f, std::min(0.9f, restitution)); 
+        float speedFactor = impactSpeed / IMPACT_SCALING;
+        
+        // Restituição adaptativa baseada na velocidade de impacto
+        // Impactos mais fortes perdem mais energia
+        float restitution = BASE_RESTITUTION - speedFactor * 1.2f; 
+        restitution = std::max(MIN_RESTITUTION, std::min(MAX_RESTITUTION, restitution));
         
         vel.y = -vel.y * restitution;
         
-        // atrito com o solo
-        float frictionCoeff = 0.05f; 
-        vel.x *= (1.0f - frictionCoeff);
+        // Aplicar mais fricção no chão para simular rolamento
+        vel.x *= GROUND_FRICTION;
+        
+        // Se a velocidade vertical for pequena após o impacto, aplicar ainda mais fricção
+        if (std::abs(vel.y) < 20.0f) {
+            vel.x *= 0.97f;
+        }
+        
+        collision = true;
+    }
+    
+    // Se houve colisão, adicionar pequeno efeito aleatório para aumentar naturalidade
+    if (collision && mass < 5.0f) { // Só aplicar em partículas mais leves
+        // Leve variação na vel para evitar movimentos muito robóticos
+        const float perturbation = 0.5f;
+        vel.x += ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * perturbation;
+        vel.y += ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * perturbation;
     }
 }
 
 void Particle::updateTrailColor() {
     if (m_useSpeedColor) {
-        // Obter a velocidade e mapear para uma cor
-        float speed = std::sqrt(vel.x * vel.x + vel.y * vel.y);
+        float speed = sqrtf(vel.x * vel.x + vel.y * vel.y);
         
         // Extrair componentes HSV da cor base
         float h, s, v;
         RGBtoHSV(m_baseColor.r, m_baseColor.g, m_baseColor.b, h, s, v);
         
+        // Garantir valores válidos de matiz, saturação e brilho
+        if (std::isnan(h) || std::isinf(h)) h = 0.0f;
+        s = std::max(0.5f, std::min(1.0f, s)); // Forçar saturação mínima de 50%
+        v = std::max(0.5f, std::min(1.0f, v)); // Forçar brilho mínimo de 50%
+        
         // Mapeamento de velocidade para matiz
         // Baixa velocidade: Azul/Verde (240/120)
         // Alta velocidade: Vermelho/Laranja (0/30)
-        float speedFactor = std::min(1.0f, speed / 500.0f); // Normalizar até 500
-        float newHue = 240.0f - speedFactor * 240.0f; // Mapear de azul para vermelho
+        float speedFactor = std::min(1.0f, speed / 500.0f); 
+        float newHue = 240.0f - speedFactor * 240.0f; 
         
         // Pulsar saturação e brilho baseado na fase
         float pulseFactor = (std::sin(m_colorPulsePhase) + 1.0f) * 0.1f;
         s = std::min(1.0f, s + pulseFactor);
         v = std::min(1.0f, v + pulseFactor);
         
-        // Converter de volta para RGB
         uint8_t r, g, b;
         HSVtoRGB(newHue, s, v, r, g, b);
         
-        // Definir a nova cor
-        sf::Color newColor(r, g, b, m_sprite.getColor().a);
+        sf::Color newColor(r, g, b, 255);
         m_sprite.setColor(newColor);
+    } else {
+        sf::Color color = m_baseColor;
+        color.a = 255;
+        m_sprite.setColor(color);
     }
 }
 
 void Particle::draw(sf::RenderTarget& target, sf::RenderStates states) const {
-    // Otimização: Verificar se a partícula está dentro da área visível
-    const sf::Vector2f particlePos = getPosition();
-    const sf::View& view = target.getView();
-    const sf::Vector2f viewCenter = view.getCenter();
-    const sf::Vector2f viewSize = view.getSize();
+    const sf::Vector2f particlePos = m_sprite.getPosition();
     
-    const float visibleMargin = 50.0f;
-    
-    // Cálculo de limites da área visível
-    const float minX = viewCenter.x - viewSize.x/2.0f - visibleMargin - radius;
-    const float maxX = viewCenter.x + viewSize.x/2.0f + visibleMargin + radius;
-    const float minY = viewCenter.y - viewSize.y/2.0f - visibleMargin - radius;
-    const float maxY = viewCenter.y + viewSize.y/2.0f + visibleMargin + radius;
-    
-    // Verificar se fora da tela
-    if (particlePos.x < minX || particlePos.x > maxX || 
-        particlePos.y < minY || particlePos.y > maxY) {
-        return; 
+    float radius = this->radius; 
+    if (m_texture) {
+        radius = m_sprite.getScale().x * m_texture->getSize().x * 0.5f;
     }
-    
-    // Desenhar o rastro primeiro
-    const size_t trailSize = m_trail.size();
-    for (size_t i = trailSize - 1; i > 0; --i) {
-        const auto& [pos, color] = m_trail[i];
-        
-        // Verificar se o ponto do rastro está visível
-        if (pos.x < minX || pos.x > maxX || pos.y < minY || pos.y > maxY) {
-            continue; 
+
+    try {
+        if (!Utility::isVisible(particlePos, radius, target.getView())) {
+            return;
         }
-        // cache de cálculos repetidos
-        const float trailFactor = static_cast<float>(i) / trailSize;
-        const float trailRadius = radius * (0.5f + 0.5f * trailFactor);
         
-        // Desenhar círculos para rastros de partículas originais
+        for (int i = m_trailSize - 1; i > 0; --i) {
+            try {
+                int idx = (m_trailHead - i + MAX_TRAIL_LENGTH) % MAX_TRAIL_LENGTH;
+                
+                if (idx < 0 || idx >= MAX_TRAIL_LENGTH) {
+                    continue;
+                }
+                
+                const sf::Vector2f& pos = m_trailBuffer[idx].position;
+                const sf::Color& color = m_trailBuffer[idx].color;
+                
+                if (!Utility::isVisible(pos, radius * 0.5f, target.getView())) {
+                    continue;
+                }
+                const float trailFactor = static_cast<float>(i) / m_trailSize;
+                const float trailRadius = radius * (0.5f + 0.5f * trailFactor);
+                
+                // Desenhar círculos para rastros de partículas originais
+                if (m_type == ParticleType::Original) {
+                    sf::CircleShape trailCircle(trailRadius);
+                    trailCircle.setPosition(pos.x - trailRadius, pos.y - trailRadius);
+                    trailCircle.setFillColor(color);
+                    target.draw(trailCircle, states);
+                }
+                else if (m_texture) {
+                    sf::Sprite trailSprite(*m_texture);
+                    
+                    const sf::Vector2u& textureSize = m_texture->getSize();
+                    const float halfTexX = textureSize.x / 2.0f;
+                    const float halfTexY = textureSize.y / 2.0f;
+                    trailSprite.setOrigin(halfTexX, halfTexY);
+                    
+                    const float maxTextureDim = static_cast<float>(std::max(textureSize.x, textureSize.y));
+                    const float scale = trailRadius * 10.0f / maxTextureDim;
+                    
+                    trailSprite.setScale(scale, scale);
+                    trailSprite.setPosition(pos);
+                    trailSprite.setColor(color);
+                    
+                    target.draw(trailSprite, states);
+                }
+            } catch (...) {
+                // Silenciar erro durante trail
+            }
+        }
+        
         if (m_type == ParticleType::Original) {
-            sf::CircleShape trailCircle(trailRadius);
-            trailCircle.setPosition(pos.x - trailRadius, pos.y - trailRadius);
-            trailCircle.setFillColor(color);
-            target.draw(trailCircle, states);
+            sf::CircleShape circle(radius);
+            circle.setPosition(particlePos.x - radius, particlePos.y - radius);
+            circle.setFillColor(m_sprite.getColor());
+            target.draw(circle, states);
+        } else if (m_texture) {
+            // Com sprite
+            target.draw(m_sprite, states);
+        } else {
+            sf::CircleShape circle(radius);
+            circle.setPosition(particlePos.x - radius, particlePos.y - radius);
+            circle.setFillColor(m_sprite.getColor());
+            target.draw(circle, states);
         }
-        // Para partículas com sprite, desenhar versões menores e mais transparentes do sprite
-        else if (m_texture) {
-            sf::Sprite trailSprite(*m_texture);
-            const sf::Vector2u& textureSize = m_texture->getSize();
-            const float halfTexX = textureSize.x / 2.0f;
-            const float halfTexY = textureSize.y / 2.0f;
-            trailSprite.setOrigin(halfTexX, halfTexY);
-            
-            const float maxTextureDim = static_cast<float>(std::max(textureSize.x, textureSize.y));
-            const float scale = trailRadius * 10.0f / maxTextureDim;
-            
-            trailSprite.setScale(scale, scale);
-            trailSprite.setPosition(pos);
-            trailSprite.setColor(color);
-            target.draw(trailSprite, states);
-        }
-    }
-    
-    if (m_type == ParticleType::Original) {
-        sf::CircleShape circle(radius);
-        circle.setPosition(particlePos.x - radius, particlePos.y - radius);
-        circle.setFillColor(m_sprite.getColor());
-        target.draw(circle, states);
-    } else if (m_texture) {
-        // Com sprite
-        target.draw(m_sprite, states);
+    } catch(...) {
     }
 }
