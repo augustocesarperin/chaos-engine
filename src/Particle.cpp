@@ -1,4 +1,5 @@
 #include "Particle.h"
+#include "TextureManager.h"
 #include "Utility.h"
 #include <iostream>
 #include <cmath>
@@ -12,7 +13,7 @@ Particle::Particle(float mass, const sf::Vector2f& position, const sf::Vector2f&
     : vel(velocity), m_accel(0.0f, 0.0f), mass(mass), m_texture(nullptr), m_type(ParticleType::Original),
       m_colorPulsePhase(0.0f), m_useSpeedColor(true) {
     
-    radius = 5.0f + mass * 0.5f;
+    radius = 5.0f + mass * 1.0f;
     sf::Color enhancedColor = color;
     
     float h, s, v;
@@ -135,42 +136,30 @@ void Particle::HSVtoRGB(float h, float s, float v, uint8_t& r, uint8_t& g, uint8
     b = static_cast<uint8_t>((bf + m) * 255);
 }
 
-void Particle::update(float dt) {
-    // Guardar a posição atual para o rastro
+void Particle::updateVisuals(float dt) {
+    // A posição da partícula já foi atualizada pela física em C.
+    // Usamos a posição atual para o rastro.
     sf::Vector2f currentPos = m_sprite.getPosition();
-    
-    // Integração de Verlet
-    sf::Vector2f newPos = currentPos + vel * dt + 0.5f * m_accel * dt * dt;
-    m_sprite.setPosition(newPos);
-    
-    vel = (newPos - currentPos) / dt;
-    
-    // Amortecimento
-    vel *= DAMPING;
-    
-    // Resetar aceleração
-    m_accel = sf::Vector2f(0.0f, 0.0f);
     
     updateTrailColor();
     
-    // Adicionar nova posição ao rastro se a partícula se moveu o suficiente
-    // Otimização: Comparar quadrados em vez de usar sqrt
+    // Adicionar nova posição ao rastro.
+    // Usamos o último ponto adicionado para checar a distância, para evitar rastros "pontilhados".
     const float minDistanceSq = 4.0f; 
-    const float dx = newPos.x - currentPos.x;
-    const float dy = newPos.y - currentPos.y;
+    sf::Vector2f lastTrailPos = m_trailBuffer[ (m_trailHead -1 + MAX_TRAIL_LENGTH) % MAX_TRAIL_LENGTH].position;
+    const float dx = currentPos.x - lastTrailPos.x;
+    const float dy = currentPos.y - lastTrailPos.y;
     const float distanceSq = dx*dx + dy*dy;
     
-    if (distanceSq > minDistanceSq || m_trailSize == 0) {
-        // Pegar a cor atual para o rastro
+    if (distanceSq > minDistanceSq || m_trailSize <= 1) {
         sf::Color trailColor = m_sprite.getColor();
         trailColor.a = 200;  
         
-        m_trailBuffer[m_trailHead].position = newPos;
+        m_trailBuffer[m_trailHead].position = currentPos;
         m_trailBuffer[m_trailHead].color = trailColor;
         
         m_trailHead = (m_trailHead + 1) % MAX_TRAIL_LENGTH;
         
-        // Atualizar tamanho atual do rastro
         if (m_trailSize < MAX_TRAIL_LENGTH) {
             m_trailSize++;
         }
@@ -178,7 +167,6 @@ void Particle::update(float dt) {
     
     // Atualizar cores do rastro - fading
     for (int i = 1; i < m_trailSize; ++i) {
-        // Calcular índice atual considerando o buffer circular
         int idx = (m_trailHead - i + MAX_TRAIL_LENGTH) % MAX_TRAIL_LENGTH;
         m_trailBuffer[idx].color.a = static_cast<uint8_t>(m_trailBuffer[idx].color.a * TRAIL_FADE_RATE);
     }

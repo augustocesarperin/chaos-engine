@@ -20,7 +20,7 @@ public:
     Particle(float mass, const sf::Vector2f& position, const sf::Vector2f& velocity, const sf::Color& color);
     virtual ~Particle() = default;
 
-    void update(float dt);
+    void updateVisuals(float dt);
     void applyForce(const sf::Vector2f& f);
     void applyDrag(float dragCoefficient);
     
@@ -36,7 +36,12 @@ public:
     void setVelocity(const sf::Vector2f& velocity) { vel = velocity; }
     
     float getMass() const { return mass; }
-    void setMass(float newMass) { mass = newMass; }
+    void setMass(float mass, bool manageRadius = true) {
+        this->mass = mass;
+        if (manageRadius) {
+            this->radius = 5.0f + mass;
+        }
+    }
     float getRadius() const { return radius; }
     
     sf::Color getColor() const { return m_sprite.getColor(); }
@@ -48,11 +53,16 @@ public:
     size_t getPoolIndex() const { return poolIndex; }
     void setPoolIndex(size_t index) { poolIndex = index; }
     
+    size_t getSoAIndex() const { return m_soaIndex; }
+    void setSoAIndex(size_t index) { m_soaIndex = index; }
+    
     void renderTo(sf::RenderTarget& target, sf::RenderStates states = sf::RenderStates::Default) const {
         draw(target, states);
     }
 
 private:
+    void updateTrail();
+
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
     void updateTrailColor();
     
@@ -87,4 +97,7 @@ private:
     bool m_useSpeedColor;
 
     size_t poolIndex;
+    size_t m_soaIndex;
+
+    std::vector<sf::Vertex> m_trailVertices;
 };
