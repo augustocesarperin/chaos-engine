@@ -5,6 +5,7 @@
 
 ParticleSystem::ParticleSystem(float width, float height)
     : m_particlePool(INITIAL_POOL_CAPACITY), m_width(width), m_height(height) {
+    m_grid = std::make_unique<SpatialGrid>(width, height, GRID_CELL_SIZE);
 }
 
 ParticleSystem::~ParticleSystem() {
@@ -13,6 +14,7 @@ ParticleSystem::~ParticleSystem() {
 void ParticleSystem::setWindowSize(float width, float height) {
     m_width = width;
     m_height = height;
+    m_grid = std::make_unique<SpatialGrid>(width, height, GRID_CELL_SIZE);
 }
 
 Particle* ParticleSystem::addParticle(float mass, const sf::Vector2f& position, const sf::Vector2f& velocity, const sf::Color& color) {
@@ -117,85 +119,79 @@ void ParticleSystem::draw(sf::RenderWindow& window) {
 }
 
 void ParticleSystem::applyInteractiveForces(float strength) {
-    // Limitar a força máxima para evitar que as partículas saiam voando
+    m_grid->clear();
+    const auto& activeParticles = m_particlePool.getActiveParticles();
+    for (Particle* p : activeParticles) {
+        m_grid->insert(p);
+    }
+
     const float MAX_FORCE = 5000.0f;
     const float MIN_DISTANCE = 5.0f;
-    const float MIN_DISTANCE_SQ = MIN_DISTANCE * MIN_DISTANCE;
     
-    // evitar chamadas repetidas
-    const auto& activeParticles = m_particlePool.getActiveParticles();
-    const size_t numParticles = activeParticles.size();
-    
-    for (size_t i = 0; i < numParticles; ++i) {
-        Particle* p1 = activeParticles[i];
-        const float mass1 = p1->getMass();
-        const sf::Vector2f& pos1 = p1->getPosition();
+    for (Particle* p1 : activeParticles) {
+        std::vector<Particle*> nearby = m_grid->getNearbyParticles(p1);
         
-        for (size_t j = i + 1; j < numParticles; ++j) {
-            Particle* p2 = activeParticles[j];
-            const float mass2 = p2->getMass();
-            const sf::Vector2f& pos2 = p2->getPosition();
-            
-            const sf::Vector2f delta = pos1 - pos2;
-            
-            const float distanceSquared = delta.x * delta.x + delta.y * delta.y;
-            
-            // Evitar distâncias muito pequenas e divisões por zero
-            if (distanceSquared < 0.0001f) continue;
+        for (Particle* p2 : nearby) {
+            if (p1->getSoAIndex() >= p2->getSoAIndex()) continue;
 
-            const float distance = std::sqrt(distanceSquared);
+            const float mass1 = p1->getMass();
+            const sf::Vector2f p1_pos = p1->getPosition();
             
-            // Aumentar distância mínima para evitar forças extremas
-            const float effectiveDistance = (distance < MIN_DISTANCE) ? MIN_DISTANCE : distance;
-            const float effectiveDistanceSquared = effectiveDistance * effectiveDistance;
+            const float mass2 = p2->getMass();
+            const sf::Vector2f p2_pos = p2->getPosition();
             
-            // Calcular a força com base na distância
-            // Cache para o produto das massas
+            const float dx = p1_pos.x - p2_pos.x;
+            const float dy = p1_pos.y - p2_pos.y;
+            
+            const float distSq = dx * dx + dy * dy;
+            
+            if (distSq > 0.0001f) {
+                const float dist = sqrt(distSq);
+                const float effectiveDist = (dist < MIN_DISTANCE) ? MIN_DISTANCE : dist;
             const float massProduct = mass1 * mass2;
-            float forceMagnitude = strength * massProduct / effectiveDistanceSquared;
             
+                float forceMagnitude = strength * massProduct / (effectiveDist * effectiveDist);
             forceMagnitude = std::min(forceMagnitude, MAX_FORCE);
             
-            // Direção da força (normalizada)
-            const sf::Vector2f forceDirection = sf::Vector2f(delta.x / distance, delta.y / distance);
-            const sf::Vector2f force = forceDirection * forceMagnitude;
-        
-            p1->applyForce(force);
-            p2->applyForce(-force);
+                const float fx = (dx / dist) * forceMagnitude;
+                const float fy = (dy / dist) * forceMagnitude;
+
+                size_t index1 = p1->getSoAIndex();
+                size_t index2 = p2->getSoAIndex();
+
+                if (mass1 > 0.0001f) {
+                    m_soa_accelerations[index1 * 2]     += fx;
+                    m_soa_accelerations[index1 * 2 + 1] += fy;
+                }
+                if (mass2 > 0.0001f) {
+                    m_soa_accelerations[index2 * 2]     -= fx;
+                    m_soa_accelerations[index2 * 2 + 1] -= fy;
+                }
+            }
         }
     }
 }
 
-void ParticleSystem::handleCollisions(float restitution) {
-    const float MIN_DISTANCE = 0.01f;
-    
+void ParticleSystem::handleCollisions(float restitution, float deltaTime) {
+    m_grid->clear();
     const auto& activeParticles = m_particlePool.getActiveParticles();
-    const size_t numParticles = activeParticles.size();
+    for (Particle* p : activeParticles) {
+        m_grid->insert(p);
+    }
     
-    // Verifica todas as combinações possíveis de partículas
-    for (size_t i = 0; i < numParticles; ++i) {
-        // Usar referências para melhorar eficiência de acesso
-        Particle* p1 = activeParticles[i];
-        const float radius1 = p1->getRadius();
-        const float mass1 = p1->getMass();
-        const float inverseMass1 = (mass1 > 0.0001f) ? 1.0f / mass1 : 0.0f;
+    for (Particle* p1 : activeParticles) {
+        std::vector<Particle*> nearby = m_grid->getNearbyParticles(p1);
         
-        for (size_t j = i + 1; j < numParticles; ++j) {
-            Particle* p2 = activeParticles[j];
-            const float radius2 = p2->getRadius();
-            const float mass2 = p2->getMass();
-            const float inverseMass2 = (mass2 > 0.0001f) ? 1.0f / mass2 : 0.0f;
+        for (Particle* p2 : nearby) {
+            if (p1->getSoAIndex() >= p2->getSoAIndex()) continue;
+
+            const float r1 = p1->getRadius();
+            const float m1 = p1->getMass();
+            const float invM1 = (m1 > 0.0001f) ? 1.0f / m1 : 0.0f;
             
-            // Cache da soma dos raios
-            const float radiusSum = radius1 + radius2;
-            const float radiusSumSquared = radiusSum * radiusSum;
-            
-            // Calcula a distância entre os centros das partículas
-            const sf::Vector2f pos1 = p1->getPosition();
-            const sf::Vector2f pos2 = p2->getPosition();
-            const sf::Vector2f delta = pos1 - pos2;
-            
-            const float distanceSquared = delta.x * delta.x + delta.y * delta.y;
+            const float r2 = p2->getRadius();
+            const float m2 = p2->getMass();
+            const float invM2 = (m2 > 0.0001f) ? 1.0f / m2 : 0.0f;
             
             // Verifica se as partículas estão colidindo (distância menor que a soma dos raios)
             if (distanceSquared < radiusSumSquared) {
@@ -269,20 +265,9 @@ void ParticleSystem::handleCollisions(float restitution) {
     }
 }
 
-void ParticleSystem::applyMouseForce(const sf::Vector2f& mousePosition, float strength, bool attractMode) {
-    const float MIN_DISTANCE_SQ = 1.0f;
-    
-    const auto& activeParticles = m_particlePool.getActiveParticles();
-    const size_t numParticles = activeParticles.size();
-    
-    const float directionMultiplier = attractMode ? 1.0f : -1.0f;
-    
-    for (size_t i = 0; i < numParticles; ++i) {
-        Particle* particle = activeParticles[i];
-        const sf::Vector2f& particlePosition = particle->getPosition();
-        
-        const sf::Vector2f direction = mousePosition - particlePosition;
-        const float distanceSquared = direction.x * direction.x + direction.y * direction.y;
+void ParticleSystem::applyMouseForce(const sf::Vector2f& mousePosition, float strength, bool attractMode, int forceMode) {
+    const float influenceRadius = 800.0f; 
+    const float minMass = 1.0f; 
 
         // Evitar distâncias muito pequenas e div por 0
         if (distanceSquared < MIN_DISTANCE_SQ) { 
