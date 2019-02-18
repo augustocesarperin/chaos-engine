@@ -5,6 +5,7 @@
 #include <vector>
 #include <cmath>
 #include <memory>
+#include <iostream>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -23,11 +24,6 @@ public:
     void updateVisuals(float dt);
     void applyForce(const sf::Vector2f& f);
     void applyDrag(float dragCoefficient);
-    
-    bool checkCollision(const Particle& other) const;
-    
-    void resolveCollision(Particle& other);
-    void keepInBounds(float width, float height);
     
     sf::Vector2f getPosition() const { return m_sprite.getPosition(); }
     void setPosition(const sf::Vector2f& position) { m_sprite.setPosition(position); }

@@ -49,43 +49,99 @@ void ParticleSystem::removeParticle(size_t index) {
     }
 }
 
-void ParticleSystem::update(float deltaTime) {
-    // Constante para resistência do ar
-    const float BASE_AIR_RESISTANCE = 0.002f;
-    
-    // Cache do número de partículas para evitar chamadas repetidas
+void ParticleSystem::update(float deltaTime, const PhysicsInputState& inputs) {
+    syncToSoA();
+
+    if (inputs.gravityEnabled) {
+        applyGravityEffect(inputs.gravitationalAcceleration);
+    }
+    if (inputs.repulsionEnabled) {
+        applyInteractiveForces(inputs.repulsionStrength);
+    }
+    if (inputs.mouseForceEnabled) {
+        applyMouseForce(inputs.mousePosition, inputs.mouseForceStrength, inputs.mouseForceAttractMode, inputs.forceMode);
+    }
+
+    if (m_soa_previous_positions.size() != m_soa_positions.size()) {
+        m_soa_previous_positions.resize(m_soa_positions.size());
+        for (size_t i = 0; i < m_particlePool.getActiveCount(); ++i) {
+            m_soa_previous_positions[i * 2]     = m_soa_positions[i * 2] - m_soa_velocities[i * 2] * deltaTime;
+            m_soa_previous_positions[i * 2 + 1] = m_soa_positions[i * 2 + 1] - m_soa_velocities[i * 2 + 1] * deltaTime;
+        }
+    }
+
+    // Chamar a função C otimizada
+    update_particles_c(
+        m_soa_positions.data(),
+        m_soa_previous_positions.data(),
+        m_soa_velocities.data(),
+        m_soa_accelerations.data(),
+        m_soa_masses.data(),
+        m_soa_radii.data(),
+        m_particlePool.getActiveCount(),
+        deltaTime,
+        m_width,
+        m_height,
+        inputs.collisionRestitution
+    );
+
+    syncFromSoA(deltaTime);
+
+    if (inputs.collisionsEnabled) {
+        handleCollisions(inputs.collisionRestitution, deltaTime);
+    }
+}
+
+void ParticleSystem::syncToSoA() {
     const auto& activeParticles = m_particlePool.getActiveParticles();
     const size_t numParticles = activeParticles.size();
     
+    m_soa_positions.resize(numParticles * 2);
+    m_soa_velocities.resize(numParticles * 2);
+    m_soa_accelerations.resize(numParticles * 2);
+    m_soa_masses.resize(numParticles);
+    m_soa_radii.resize(numParticles);
+    
     for (size_t i = 0; i < numParticles; ++i) {
-        Particle* particle = activeParticles[i];
+        Particle* p = activeParticles[i];
+        p->setSoAIndex(i); 
+
+        const sf::Vector2f pos = p->getPosition();
+        const sf::Vector2f vel = p->getVelocity();        
+        m_soa_positions[i * 2]     = pos.x;
+        m_soa_positions[i * 2 + 1] = pos.y;
         
-        // Calcular resistência do ar usando a massa da partícula
-        const float mass = particle->getMass();
-        const float airResistance = BASE_AIR_RESISTANCE / mass;
-        
-        // Aplicar resistência, atualizar posição e manter dentro dos limites
-        particle->applyDrag(airResistance);
-        particle->update(deltaTime);
-        particle->keepInBounds(m_width, m_height);
+        m_soa_velocities[i * 2]     = vel.x;
+        m_soa_velocities[i * 2 + 1] = vel.y;
+
+        m_soa_masses[i] = p->getMass();
+        m_soa_radii[i] = p->getRadius();
+    }
+
+    std::fill(m_soa_accelerations.begin(), m_soa_accelerations.end(), 0.0f);
+}
+
+void ParticleSystem::syncFromSoA(float dt) {
+    const auto& activeParticles = m_particlePool.getActiveParticles();
+    const size_t numParticles = activeParticles.size();
+
+    // Copiar dados de volta do SoA para o AoS
+    for (size_t i = 0; i < numParticles; ++i) {
+        Particle* p = activeParticles[i];
+        p->setPosition({m_soa_positions[i * 2], m_soa_positions[i * 2 + 1]});
+        p->setVelocity({m_soa_velocities[i * 2], m_soa_velocities[i * 2 + 1]});
+        p->updateVisuals(dt);
     }
 }
 
 void ParticleSystem::applyGravityEffect(float gravitationalAcceleration) {
     const float MIN_VALID_MASS = 0.0001f;
-    
-    // Cache do número de partículas
-    const auto& activeParticles = m_particlePool.getActiveParticles();
-    const size_t numParticles = activeParticles.size();
+    const size_t numParticles = m_particlePool.getActiveCount();
     
     for (size_t i = 0; i < numParticles; ++i) {
-        Particle* particle = activeParticles[i];
-        const float mass = particle->getMass();
-        
+        const float mass = m_soa_masses[i];
         if (mass > MIN_VALID_MASS) {
-            // Pre-calcular a força da gravidade baseada na massa
-            const sf::Vector2f gravityForce(0.0f, mass * gravitationalAcceleration);
-            particle->applyForce(gravityForce);
+            m_soa_accelerations[i * 2 + 1] += gravitationalAcceleration;
         }
     }
 }
@@ -112,7 +168,7 @@ void ParticleSystem::draw(sf::RenderWindow& window) {
         if (!particle) {
             continue;
         }
-
+        
         particle->renderTo(window, sf::RenderStates::Default);
         particlesDrawn++;
     }
@@ -193,73 +249,49 @@ void ParticleSystem::handleCollisions(float restitution, float deltaTime) {
             const float m2 = p2->getMass();
             const float invM2 = (m2 > 0.0001f) ? 1.0f / m2 : 0.0f;
             
-            // Verifica se as partículas estão colidindo (distância menor que a soma dos raios)
-            if (distanceSquared < radiusSumSquared) {
-                // Só precisamos calcular a raíz quadrada quando há uma possível colisão
-                const float distance = std::max(std::sqrt(distanceSquared), MIN_DISTANCE);
+            const float radiusSum = r1 + r2;
+            const sf::Vector2f deltaPos = p1->getPosition() - p2->getPosition();
+            const float distSq = deltaPos.x * deltaPos.x + deltaPos.y * deltaPos.y;
+
+            if (distSq < radiusSum * radiusSum) {
+                const float distance = std::sqrt(distSq);
+                const sf::Vector2f normal = (distance > 0.0001f) ? deltaPos / distance : sf::Vector2f(1, 0);
+
+                const sf::Vector2f relativeVelocity = p1->getVelocity() - p2->getVelocity();
+                const float velAlongNormal = relativeVelocity.x * normal.x + relativeVelocity.y * normal.y;
+
+                if (velAlongNormal > 0) continue;
+
+                const float e = restitution;
+                float j = -(1.0f + e) * velAlongNormal;
+                j /= (invM1 + invM2);
+                const sf::Vector2f impulse = j * normal;
+                p1->setVelocity(p1->getVelocity() + impulse * invM1);
+                p2->setVelocity(p2->getVelocity() - impulse * invM2);
+
+                const sf::Vector2f tangent = {-normal.y, normal.x};
+                const float friction = 0.9f; 
+                const float vt = relativeVelocity.x * tangent.x + relativeVelocity.y * tangent.y;
+                sf::Vector2f tangent_impulse = tangent * (vt * friction);
+                tangent_impulse /= (invM1 + invM2);
+                p1->setVelocity(p1->getVelocity() - tangent_impulse * invM1);
+                p2->setVelocity(p2->getVelocity() + tangent_impulse * invM2);
+
+                const float percent = 0.5f; 
+                const float slop = 0.01f; 
+                const float penetration = std::max(radiusSum - distance - slop, 0.0f);
+                const sf::Vector2f correction = normal * (penetration / (invM1 + invM2)) * percent;
                 
-                // Direção normal da colisão 
-                const sf::Vector2f normal = delta / distance;
+                p1->setPosition(p1->getPosition() + correction * invM1);
+                p2->setPosition(p2->getPosition() - correction * invM2);
+
+                size_t index1 = p1->getSoAIndex();
+                m_soa_previous_positions[index1 * 2] = p1->getPosition().x - p1->getVelocity().x * deltaTime;
+                m_soa_previous_positions[index1 * 2 + 1] = p1->getPosition().y - p1->getVelocity().y * deltaTime;
                 
-                // Calcula a velocidade relativa na direção normal
-                const sf::Vector2f v1 = p1->getVelocity();
-                const sf::Vector2f v2 = p2->getVelocity();
-                const sf::Vector2f relativeVelocity = v1 - v2;
-                
-                // Produto escalar entre velocidade relativa e normal 
-                const float normalVelocity = relativeVelocity.x * normal.x + relativeVelocity.y * normal.y;
-                
-                // Se as partículas estão se afastando, não há colisão a ser resolvida
-                if (normalVelocity > 0) {
-                    continue;
-                }
-                
-                float adjustedRestitution = restitution;
-                
-                // Se muitas partículas estiverem próximas (distância pequena),
-                // reduz restituição 
-                const float distanceRatio = distance / radiusSum;
-                if (distanceRatio < 0.7f) {
-                    adjustedRestitution *= distanceRatio * 0.8f;
-                }
-                
-                const float restitutionFactor = 1.0f + adjustedRestitution;
-                
-                const float impulse = -restitutionFactor * normalVelocity / (inverseMass1 + inverseMass2);
-                const sf::Vector2f impulseVector = normal * impulse;
-                
-                sf::Vector2f newV1 = v1 + impulseVector * inverseMass1;
-                sf::Vector2f newV2 = v2 - impulseVector * inverseMass2;
-                
-                // Limitar velocidade máxima após colisão quando há muitas partículas próximas
-                const float maxVelocity = 400.0f;
-                
-                float v1Mag = std::sqrt(newV1.x*newV1.x + newV1.y*newV1.y);
-                float v2Mag = std::sqrt(newV2.x*newV2.x + newV2.y*newV2.y);
-                
-                if (v1Mag > maxVelocity) {
-                    newV1.x = (newV1.x / v1Mag) * maxVelocity;
-                    newV1.y = (newV1.y / v1Mag) * maxVelocity;
-                }
-                
-                if (v2Mag > maxVelocity) {
-                    newV2.x = (newV2.x / v2Mag) * maxVelocity;
-                    newV2.y = (newV2.y / v2Mag) * maxVelocity;
-                }
-                
-                p1->setVelocity(newV1);
-                p2->setVelocity(newV2);
-                
-                // Corrige posições para evitar sobrepos
-                const float penetration = radiusSum - distance;
-                
-                // Cache 
-                const float totalMass = mass1 + mass2;
-                const float pushRatio1 = mass2 / totalMass;
-                const float pushRatio2 = mass1 / totalMass;
-                
-                p1->setPosition(pos1 + normal * penetration * pushRatio1);
-                p2->setPosition(pos2 - normal * penetration * pushRatio2);
+                size_t index2 = p2->getSoAIndex();
+                m_soa_previous_positions[index2 * 2] = p2->getPosition().x - p2->getVelocity().x * deltaTime;
+                m_soa_previous_positions[index2 * 2 + 1] = p2->getPosition().y - p2->getVelocity().y * deltaTime;
             }
         }
     }
@@ -269,19 +301,80 @@ void ParticleSystem::applyMouseForce(const sf::Vector2f& mousePosition, float st
     const float influenceRadius = 800.0f; 
     const float minMass = 1.0f; 
 
-        // Evitar distâncias muito pequenas e div por 0
-        if (distanceSquared < MIN_DISTANCE_SQ) { 
-            continue; 
-        }
+    static float pulseTime = 0.0f;
+    pulseTime += 0.05f; 
 
-        // Calcular força apenas quando realmente necessário
-        const float distance = std::sqrt(distanceSquared);  
-        const float forceMagnitude = strength / distance;
+    for (size_t i = 0; i < m_particlePool.getActiveCount(); ++i) {
+        float px = m_soa_positions[i * 2];
+        float py = m_soa_positions[i * 2 + 1];
+        float mass = m_soa_masses[i];
         
-        const sf::Vector2f normalizedDirection = direction / distance;
-        const sf::Vector2f force = normalizedDirection * forceMagnitude * directionMultiplier;
-        
-        particle->applyForce(force);
+        sf::Vector2f direction = mousePosition - sf::Vector2f(px, py);
+        float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+
+        if (distance < influenceRadius && distance > 0.01f) {
+            
+            float normalizedDistance = std::min(1.0f, distance / influenceRadius);
+            float falloff = std::pow(1.0f - normalizedDistance, 2.0f);
+            
+            float forceMagnitude = strength * falloff / std::max(mass, minMass);
+
+            if (!attractMode) {
+                forceMagnitude *= -1;
+            }
+
+            sf::Vector2f force = {0.0f, 0.0f};
+
+            switch (forceMode) {
+                case 0: { // Padrão
+                    force = (direction / distance) * forceMagnitude;
+                    break;
+                }
+                case 1: { // Redemoinho
+                    const float orbitRadius = 60.0f; // Raio da órbita estável
+
+                    sf::Vector2f radialForce;
+                    sf::Vector2f tangentForce;
+
+                    if (distance > orbitRadius) {
+                        // --- Zona de Captura (Longe) ---
+                        // Puxa forte para o centro.
+                        radialForce = (direction / distance) * forceMagnitude * 2.0f;
+                        // Giro fraco para iniciar a espiral.
+                        sf::Vector2f tangent = {-direction.y, direction.x};
+                        tangentForce = (tangent / distance) * forceMagnitude * 0.5f;
+                    } else {
+                        // --- Zona de Órbita (Perto) ---
+                        // A atração vira uma leve repulsão para evitar o colapso no centro.
+                        float pushStrength = forceMagnitude * (1.0f - distance / orbitRadius);
+                        radialForce = -(direction / distance) * pushStrength * 0.5f;
+
+                        // O giro é máximo para manter a órbita rápida e apertada.
+                        sf::Vector2f tangent = {-direction.y, direction.x};
+                        tangentForce = (tangent / distance) * forceMagnitude * 2.0f;
+                    }
+
+                    force = radialForce + tangentForce;
+                    break;
+                }
+                case 2: { // Onda de Pulso
+                    float pulse = sin(pulseTime - distance * 0.05f);
+                    force = (direction / distance) * forceMagnitude * pulse;
+                    break;
+                }
+                case 3: { // Linha de Força
+                    float dx = mousePosition.x - px;
+                    float lineFalloff = std::max(0.0f, 1.0f - std::abs(dx) / influenceRadius);
+                    float lineForce = strength * lineFalloff / std::max(mass, minMass);
+                    if (dx < 0) lineForce *= -1;
+                    if (!attractMode) lineForce *= -1;
+                    force = {lineForce, 0.0f};
+                    break;
+                }
+            }
+            m_soa_accelerations[i * 2]     += force.x;
+            m_soa_accelerations[i * 2 + 1] += force.y;
+        }
     }
 }
 

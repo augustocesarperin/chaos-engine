@@ -1,7 +1,7 @@
-# Permitir apenas o executável do simulador
+
 *.exe
 !ParticleSimulator.exe
-# Permitir DLLs do SFML
+
 !*.dll
 *.o
 *.obj
@@ -20,8 +20,6 @@ Release/
 stdout.txt
 stderr.txt
 compile_run.bat
-compile_and_run.bat
-hello.cpp
 simple_test.cpp
 .DS_Store
 Thumbs.db

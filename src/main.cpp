@@ -19,26 +19,32 @@ struct AppState {
     static constexpr int NUM_PARTICLES_INICIAL = 0;
     static constexpr float GRAVIDADE_PADRAO = 250.0f;
     static constexpr float REPULSAO_PADRAO = 5.0f;
-    static constexpr float RESTITUICAO_PADRAO = 0.8f;
-    static constexpr float DEFAULT_MOUSE_FORCE = 75000.0f;
-    static constexpr float MIN_MOUSE_FORCE = 5000.0f;
-    static constexpr float MAX_MOUSE_FORCE = 500000.0f;
-    static constexpr float MOUSE_FORCE_STEP = 10000.0f;
+    static constexpr float RESTITUICAO_PADRAO = 0.7f;
+    static constexpr float DEFAULT_MOUSE_FORCE = 3750.0f;
+    static constexpr float MIN_MOUSE_FORCE = 50.0f;
+    static constexpr float MAX_MOUSE_FORCE = 25000.0f;
+    static constexpr float MOUSE_FORCE_STEP = 250.0f;
     
     float desiredGravitationalAcceleration = GRAVIDADE_PADRAO;
     bool gravityEnabled = true;
     bool repulsionEnabled = false;
     bool collisionsEnabled = true;
     float collisionRestitution = RESTITUICAO_PADRAO;
-
+    
     ParticleType currentParticleType = ParticleType::Original;
     std::string particleTypeName = "Original";
+    bool showInstructions = true;
+    bool mouseCursorVisible = false;
+
+    enum ForcePatternMode { Standard, Vortex, PulseWave, ForceLine, COUNT };
+    ForcePatternMode currentForceMode = Standard;
+    std::string forceModeName = "Padrão";
     
     bool mouseForceEnabled = false;
     bool mouseForceAttractMode = true; 
     float mouseForceStrength = DEFAULT_MOUSE_FORCE;
     sf::Vector2f mousePositionWindow;
-
+    
     ParticleSystem particleSystem;
     Mousart mousart;
 
@@ -52,7 +58,8 @@ struct AppState {
 
 void setup(sf::RenderWindow& window, AppState& state);
 void processInput(sf::RenderWindow& window, AppState& state);
-void update(sf::Clock& clock, sf::RenderWindow& window, AppState& state);
+void updatePhysics(AppState& state, float dt);
+void updateUI(sf::RenderWindow& window, AppState& state, float real_dt);
 void render(sf::RenderWindow& window, AppState& state);
 
 int main()
@@ -60,26 +67,31 @@ int main()
     try {
         const int WIDTH = 800;
         const int HEIGHT = 600;
-        
-        std::string windowTitle = "Simulador de Partículas - por Augusto César Perin";
-        sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), sf::String::fromUtf8(windowTitle.begin(), windowTitle.end()));
-        window.setFramerateLimit(60);
+    
+    std::string windowTitle = "Simulador de Partículas - por Augusto César Perin";
+    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), sf::String::fromUtf8(windowTitle.begin(), windowTitle.end()));
+        window.setFramerateLimit(120);
 
         AppState state(WIDTH, HEIGHT);
         setup(window, state);
         
         sf::Clock clock;
+        sf::Time timeSinceLastUpdate = sf::Time::Zero;
+        const sf::Time TimePerFrame = sf::seconds(1.f / 60.f);
         
         while (window.isOpen()) {
-            try {
-                processInput(window, state);
-                update(clock, window, state);
-                render(window, state);
-            } catch (const std::exception& e) {
-                std::cerr << "ERRO NO LOOP PRINCIPAL: " << e.what() << std::endl;
-                system("pause");
-                break;
+            sf::Time elapsedTime = clock.restart();
+            timeSinceLastUpdate += elapsedTime;
+            
+            processInput(window, state);
+            
+            while (timeSinceLastUpdate > TimePerFrame) {
+                timeSinceLastUpdate -= TimePerFrame;
+                updatePhysics(state, TimePerFrame.asSeconds());
             }
+            
+            updateUI(window, state, elapsedTime.asSeconds());
+            render(window, state);
         }
     } catch (const std::exception& e) {
         std::cerr << "ERRO FATAL: " << e.what() << std::endl;
@@ -90,6 +102,8 @@ int main()
 }
 
 void setup(sf::RenderWindow& window, AppState& state) {
+    window.setFramerateLimit(60);
+
     sf::Image windowIcon;
     if (windowIcon.loadFromFile("assets/icon.png")) {
         window.setIcon(windowIcon.getSize().x, windowIcon.getSize().y, windowIcon.getPixelsPtr());
@@ -112,16 +126,10 @@ void setup(sf::RenderWindow& window, AppState& state) {
     float scaleY = static_cast<float>(windowSize.y) / textureSize.y;
     state.backgroundSprite.setScale(scaleX, scaleY);
 
-    std::vector<std::string> fontPaths = {"C:\\Windows\\Fonts\\arial.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/Library/Fonts/Arial.ttf", "assets/fonts/arial.ttf", "arial.ttf"};
-    bool fontLoaded = false;
-    for (const auto& path : fontPaths) {
-        if (state.font.loadFromFile(path)) {
-            fontLoaded = true;
-            break;
+    if (!state.font.loadFromFile("assets/font.ttf")) {
+        if (!state.font.loadFromFile("C:/Windows/Fonts/consola.ttf")) {
+            std::cerr << "Aviso: Nenhuma fonte encontrada. O texto não será exibido." << std::endl;
         }
-    }
-    if (!fontLoaded) {
-        std::cerr << "Aviso: Nenhuma fonte encontrada. O texto não será exibido." << std::endl;
     }
     
     state.instructions.setFont(state.font);
@@ -138,35 +146,39 @@ void setup(sf::RenderWindow& window, AppState& state) {
 }
 
 void processInput(sf::RenderWindow& window, AppState& state) {
-    sf::Event event;
+        sf::Event event;
     while (window.pollEvent(event)) {
+        if (event.type == sf::Event::Resized) {
+            sf::FloatRect visibleArea(0, 0, event.size.width, event.size.height);
+            window.setView(sf::View(visibleArea));
+
+            sf::Vector2u textureSize = state.backgroundTexture.getSize();
+            float scaleX = static_cast<float>(event.size.width) / textureSize.x;
+            float scaleY = static_cast<float>(event.size.height) / textureSize.y;
+            state.backgroundSprite.setScale(scaleX, scaleY);
+            
+            state.particleSystem.setWindowSize(static_cast<float>(event.size.width), static_cast<float>(event.size.height));
+        }
         if (event.type == sf::Event::Closed) {
             window.close();
-        }
-        
-        if (event.type == sf::Event::Resized) {
-            sf::View view;
-            view.reset(sf::FloatRect(0, 0, event.size.width, event.size.height));
-            window.setView(view);
-            state.particleSystem.setWindowSize(static_cast<float>(event.size.width), static_cast<float>(event.size.height));
         }
         
         if (event.type == sf::Event::MouseButtonPressed) {
             sf::Vector2f position = window.mapPixelToCoords({event.mouseButton.x, event.mouseButton.y});
             position += state.mousart.getCursorTipOffset(window);
-
-            std::random_device rd;
-            std::mt19937 gen(rd());
-            std::uniform_real_distribution<float> velDist(-50.0f, 50.0f);
+                
+                std::random_device rd;
+                std::mt19937 gen(rd());
+                std::uniform_real_distribution<float> velDist(-50.0f, 50.0f);
             
             const sf::Color harmoniousPalette[] = { sf::Color(3, 169, 244), sf::Color(156, 39, 176), sf::Color(255, 87, 34), sf::Color(76, 175, 80), sf::Color(255, 193, 7) };
             std::uniform_int_distribution<int> colorIndex(0, std::size(harmoniousPalette) - 1);
             
             Particle* p = nullptr;
-            if (event.mouseButton.button == sf::Mouse::Left) {
+                if (event.mouseButton.button == sf::Mouse::Left) {
                 p = state.particleSystem.addParticle(2.0f, position, {velDist(gen), velDist(gen)}, harmoniousPalette[colorIndex(gen)]);
-            } else if (event.mouseButton.button == sf::Mouse::Right) {
-                p = state.particleSystem.addParticle(15.0f, position, {velDist(gen), velDist(gen)}, harmoniousPalette[colorIndex(gen)]);
+                } else if (event.mouseButton.button == sf::Mouse::Right) {
+                p = state.particleSystem.addParticle(10.0f, position, {velDist(gen), velDist(gen)}, harmoniousPalette[colorIndex(gen)]);
             }
             if (p) {
                 p->setParticleType(state.currentParticleType);
@@ -179,68 +191,91 @@ void processInput(sf::RenderWindow& window, AppState& state) {
                 case sf::Keyboard::R: state.repulsionEnabled = !state.repulsionEnabled; if(state.repulsionEnabled) state.collisionsEnabled = false; break;
                 case sf::Keyboard::L: state.collisionsEnabled = !state.collisionsEnabled; if(state.collisionsEnabled) state.repulsionEnabled = false; break;
                 case sf::Keyboard::C: while (state.particleSystem.getParticleCount() > 0) state.particleSystem.removeParticle(size_t(0)); break;
-                case sf::Keyboard::Space: for (int i = 0; i < 20; ++i) state.particleSystem.generateRandomParticle(1.0f, 8.0f)->setParticleType(state.currentParticleType); break;
+                    case sf::Keyboard::Space:
+                        for (int i = 0; i < 20; ++i) {
+                        state.particleSystem.generateRandomParticle(2.0f, 2.0f)->setParticleType(state.currentParticleType); 
+                        }
+                        break;
                 case sf::Keyboard::M: state.mouseForceEnabled = !state.mouseForceEnabled; state.mousart.setForceMode(state.mouseForceEnabled); break;
                 case sf::Keyboard::N: if (state.mouseForceEnabled) state.mouseForceAttractMode = !state.mouseForceAttractMode; break;
                 case sf::Keyboard::Add: case sf::Keyboard::Equal: if (state.mouseForceEnabled) state.mouseForceStrength = std::min(AppState::MAX_MOUSE_FORCE, state.mouseForceStrength + AppState::MOUSE_FORCE_STEP); break;
                 case sf::Keyboard::Subtract: case sf::Keyboard::Hyphen: if (state.mouseForceEnabled) state.mouseForceStrength = std::max(AppState::MIN_MOUSE_FORCE, state.mouseForceStrength - AppState::MOUSE_FORCE_STEP); break;
                 case sf::Keyboard::K: state.mousart.cycleCursorType(); break;
                 case sf::Keyboard::S: state.instructions.setFillColor(state.instructions.getFillColor().a > 0 ? sf::Color::Transparent : sf::Color::White); break;
-                case sf::Keyboard::T:
+                case sf::Keyboard::I: state.collisionRestitution = std::min(1.0f, state.collisionRestitution + 0.05f); break;
+                case sf::Keyboard::U: state.collisionRestitution = std::max(0.0f, state.collisionRestitution - 0.05f); break;
+                    case sf::Keyboard::T:
                     if (state.currentParticleType == ParticleType::Original) {
                         state.currentParticleType = ParticleType::Crystal;
                         state.particleTypeName = "Crystal";
-                    } else {
+                        } else {
                         state.currentParticleType = ParticleType::Original;
                         state.particleTypeName = "Original";
-                    }
-                    break;
+                        }
+                        break;
+                case sf::Keyboard::F:
+                    state.currentForceMode = static_cast<AppState::ForcePatternMode>((state.currentForceMode + 1) % AppState::ForcePatternMode::COUNT);
+                    switch (state.currentForceMode) {
+                        case AppState::Standard:   state.forceModeName = "Padrão"; break;
+                        case AppState::Vortex:     state.forceModeName = "Redemoinho"; break;
+                        case AppState::PulseWave:  state.forceModeName = "Onda de Pulso"; break;
+                        case AppState::ForceLine:  state.forceModeName = "Linha de Força"; break;
+                        default: break;
+                        }
+                        break;
                 default: break;
             }
         }
     }
 }
 
-void update(sf::Clock& clock, sf::RenderWindow& window, AppState& state) {
-    float deltaTime = clock.restart().asSeconds();
-    if (deltaTime > 0.1f) deltaTime = 0.1f;
+void updatePhysics(AppState& state, float dt) {
+    ParticleSystem::PhysicsInputState inputs;
+    inputs.gravityEnabled = state.gravityEnabled;
+    inputs.gravitationalAcceleration = state.desiredGravitationalAcceleration;
+    inputs.repulsionEnabled = state.repulsionEnabled;
+    inputs.repulsionStrength = AppState::REPULSAO_PADRAO;
+    inputs.collisionRestitution = state.collisionRestitution;
+    inputs.mouseForceEnabled = state.mouseForceEnabled;
+    inputs.mousePosition = state.mousePositionWindow;
+    inputs.mouseForceStrength = state.mouseForceStrength;
+    inputs.mouseForceAttractMode = state.mouseForceAttractMode;
+    inputs.forceMode = state.currentForceMode;
 
+    state.particleSystem.update(dt, inputs);
+}
+
+void updateUI(sf::RenderWindow& window, AppState& state, float real_dt) {
     state.mousePositionWindow = window.mapPixelToCoords(sf::Mouse::getPosition(window));
     state.mousart.update(sf::Mouse::getPosition(window), window);
 
-    if (state.gravityEnabled) {
-        state.particleSystem.applyGravityEffect(state.desiredGravitationalAcceleration);
-    }
-    if (state.repulsionEnabled) {
-        state.particleSystem.applyInteractiveForces(AppState::REPULSAO_PADRAO);
-    }
-    if (state.collisionsEnabled) {
-        state.particleSystem.handleCollisions(state.collisionRestitution);
-    }
-    if (state.mouseForceEnabled) {
-        state.particleSystem.applyMouseForce(state.mousePositionWindow, state.mouseForceStrength, state.mouseForceAttractMode);
-    }
+    float fps = (real_dt > 0.0001f) ? 1.0f / real_dt : 0.0f;
 
-    state.particleSystem.update(deltaTime);
-
-    std::string statusText = 
-        "Controles:\n"
+        std::string statusText = 
+            "Controles:\n"
+        "Botão esquerdo/direito: Adicionar partícula\n"
         "G: Gravidade (" + std::string(state.gravityEnabled ? "ON" : "OFF") + ")\n"
         "R: Repulsao (" + std::string(state.repulsionEnabled ? "ON" : "OFF") + ")\n"
         "L: Colisões (" + std::string(state.collisionsEnabled ? "ON" : "OFF") + ")\n"
-        "M: Forca do Mouse (" + (state.mouseForceEnabled ? "ON" : "OFF") + ") | " + (state.mouseForceAttractMode ? "Atracao" : "Repulsao") + "\n"
+        "M: Força do Mouse (" + std::string(state.mouseForceEnabled ? "ON" : "OFF") + ")\n"
+        "N: Modo da Força (" + std::string(state.mouseForceAttractMode ? "Atrair" : "Repelir") + ")\n"
+        "F: Padrão da Força (" + state.forceModeName + ")\n"
+        "+/-: Intensidade da Força (" + std::to_string(static_cast<int>(state.mouseForceStrength)) + ")\n"
+        "I/U: Restituição (" + std::to_string(state.collisionRestitution).substr(0, 4) + ")\n"
         "T: Tipo de Partícula (" + state.particleTypeName + ")\n"
-        "C: Limpar | Espaco: Adicionar\n\n"
+        "K: Alternar Cursor\n"
+        "S: Mostrar/Ocultar Controles\n"
+        "C: Limpar Tudo | Espaço: Adicionar Aleatórias\n\n"
         "Partículas: " + std::to_string(state.particleSystem.getParticleCount()) +
-        "\nFPS: " + std::to_string(static_cast<int>(1.0f / (deltaTime > 0.0001f ? deltaTime : 0.0001f)));
+        "\nFPS: " + std::to_string(static_cast<int>(fps));
     state.instructions.setString(sf::String::fromUtf8(statusText.begin(), statusText.end()));
 }
 
 void render(sf::RenderWindow& window, AppState& state) {
-    window.clear(sf::Color(10, 5, 15));
+        window.clear(sf::Color(10, 5, 15)); 
     window.draw(state.backgroundSprite);
     state.particleSystem.draw(window);
     window.draw(state.instructions);
     state.mousart.draw(window);
-    window.display();
+        window.display();
 }

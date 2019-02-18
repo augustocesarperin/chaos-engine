@@ -196,166 +196,6 @@ void Particle::applyDrag(float dragCoefficient) {
     }
 }
 
-bool Particle::checkCollision(const Particle& other) const {
-    // Otimização* Comparar quadrados em vez de calcular raíz
-    const sf::Vector2f deltaPos = getPosition() - other.getPosition();
-    const float distanceSq = deltaPos.x * deltaPos.x + deltaPos.y * deltaPos.y;
-    const float sumRadius = getRadius() + other.getRadius();
-    
-    return distanceSq < (sumRadius * sumRadius);
-}
-
-void Particle::resolveCollision(Particle& other) {
-    sf::Vector2f delta = getPosition() - other.getPosition();
-    float distance = std::sqrt(delta.x * delta.x + delta.y * delta.y);
-    
-    if (distance == 0) return;
-    
-    sf::Vector2f normal = sf::Vector2f(delta.x / distance, delta.y / distance);
-    sf::Vector2f rv = vel - other.vel;
-    float velAlongNormal = rv.x * normal.x + rv.y * normal.y;
-    
-    if (velAlongNormal > 0) return;
-    
-    // Coeficiente de restituição adaptativo baseado na proximidade das partículas
-    float e = 0.8f; 
-    
-    // Ajustar coeficiente baseado na distância
-    float radiusSum = getRadius() + other.getRadius();
-    float distanceRatio = distance / radiusSum;
-    
-    // Se as partículas estão muito próximas, reduZIR elasticidade
-    if (distanceRatio < 0.9f) {
-        e *= distanceRatio * 0.9f;
-    }
-    
-    float j = -(1 + e) * velAlongNormal;
-    j /= 1/mass + 1/other.mass;
-    
-    sf::Vector2f impulse = sf::Vector2f(j * normal.x, j * normal.y);
-    
-    sf::Vector2f newVel1 = vel + sf::Vector2f(impulse.x / mass, impulse.y / mass);
-    sf::Vector2f newVel2 = other.vel - sf::Vector2f(impulse.x / other.mass, impulse.y / other.mass);
-    
-    const float maxVelocity = 350.0f;
-    
-    float vel1Mag = std::sqrt(newVel1.x*newVel1.x + newVel1.y*newVel1.y);
-    if (vel1Mag > maxVelocity) {
-        newVel1 = newVel1 * (maxVelocity / vel1Mag);
-    }
-    
-    float vel2Mag = std::sqrt(newVel2.x*newVel2.x + newVel2.y*newVel2.y);
-    if (vel2Mag > maxVelocity) {
-        newVel2 = newVel2 * (maxVelocity / vel2Mag);
-    }
-    
-    vel = newVel1;
-    other.vel = newVel2;
-    
-    float overlap = getRadius() + other.getRadius() - distance;
-    if (overlap > 0) {
-        // Ajuste de posição baseado em massa
-        float totalMass = mass + other.mass;
-        float moveRatio1 = other.mass / totalMass;
-        float moveRatio2 = mass / totalMass;
-        
-        // Aplicação mais suave da correção quando há muitas partículas
-        float correctionFactor = std::min(1.0f, distanceRatio + 0.1f);
-        sf::Vector2f correction = normal * overlap * correctionFactor;
-        
-        m_sprite.setPosition(getPosition() + correction * moveRatio1);
-        other.m_sprite.setPosition(other.getPosition() - correction * moveRatio2);
-    }
-}
-
-void Particle::keepInBounds(float width, float height) {
-    sf::Vector2f position = m_sprite.getPosition();
-    float friction = 0.0f; 
-    bool collision = false;
-    
-
-    const float BASE_RESTITUTION = 0.85f; 
-    const float IMPACT_SCALING = 350.0f;  
-    const float MIN_RESTITUTION = 0.15f;  // Valor mínimo de restituição
-    const float MAX_RESTITUTION = 0.85f;  // Valor máximo de restituição
-    const float GROUND_FRICTION = 0.96f;  // Fricção c chao
-    const float WALL_FRICTION = 0.98f;    // Fricção menor paredes laterais
-    
-    // Colisão com a parede esquerda
-    if (position.x - radius < 0) {
-        // Evita que a partícula fique presa na borda
-        m_sprite.setPosition(radius + 0.1f, position.y);
-        
-        // Calcular restituição baseada na velocidade de impacto
-        float impactSpeed = std::abs(vel.x);
-        float speedFactor = impactSpeed / IMPACT_SCALING;
-        float restitution = BASE_RESTITUTION - speedFactor;
-        restitution = std::max(MIN_RESTITUTION, std::min(MAX_RESTITUTION, restitution));
-        
-        vel.x = -vel.x * restitution;
-        vel.y *= WALL_FRICTION; 
-        collision = true;
-    }
-    // Colisão com a parede direita
-    else if (position.x + radius > width) {
-        m_sprite.setPosition(width - radius - 0.1f, position.y);
-        
-        float impactSpeed = std::abs(vel.x);
-        float speedFactor = impactSpeed / IMPACT_SCALING;
-        float restitution = BASE_RESTITUTION - speedFactor;
-        restitution = std::max(MIN_RESTITUTION, std::min(MAX_RESTITUTION, restitution));
-        
-        vel.x = -vel.x * restitution;
-        vel.y *= WALL_FRICTION;
-        collision = true;
-    }
-    
-    // Colisão teto
-    if (position.y - radius < 0) {
-        m_sprite.setPosition(position.x, radius + 0.1f);
-        
-        float impactSpeed = std::abs(vel.y);
-        float speedFactor = impactSpeed / IMPACT_SCALING;
-        float restitution = BASE_RESTITUTION - speedFactor;
-        restitution = std::max(MIN_RESTITUTION, std::min(MAX_RESTITUTION, restitution));
-        
-        vel.y = -vel.y * restitution;
-        vel.x *= WALL_FRICTION; 
-        collision = true;
-    }
-    else if (position.y + radius > height) {
-        m_sprite.setPosition(position.x, height - radius - 0.1f);
-        
-        float impactSpeed = std::abs(vel.y);
-        float speedFactor = impactSpeed / IMPACT_SCALING;
-        
-        // Restituição adaptativa baseada na velocidade de impacto
-        // Impactos mais fortes perdem mais energia
-        float restitution = BASE_RESTITUTION - speedFactor * 1.2f; 
-        restitution = std::max(MIN_RESTITUTION, std::min(MAX_RESTITUTION, restitution));
-        
-        vel.y = -vel.y * restitution;
-        
-        // Aplicar mais fricção no chão para simular rolamento
-        vel.x *= GROUND_FRICTION;
-        
-        // Se a velocidade vertical for pequena após o impacto, aplicar ainda mais fricção
-        if (std::abs(vel.y) < 20.0f) {
-            vel.x *= 0.97f;
-        }
-        
-        collision = true;
-    }
-    
-    // Se houve colisão, adicionar pequeno efeito aleatório para aumentar naturalidade
-    if (collision && mass < 5.0f) { // Só aplicar em partículas mais leves
-        // Leve variação na vel para evitar movimentos muito robóticos
-        const float perturbation = 0.5f;
-        vel.x += ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * perturbation;
-        vel.y += ((static_cast<float>(rand()) / RAND_MAX) - 0.5f) * perturbation;
-    }
-}
-
 void Particle::updateTrailColor() {
     if (m_useSpeedColor) {
         float speed = sqrtf(vel.x * vel.x + vel.y * vel.y);
@@ -364,18 +204,13 @@ void Particle::updateTrailColor() {
         float h, s, v;
         RGBtoHSV(m_baseColor.r, m_baseColor.g, m_baseColor.b, h, s, v);
         
-        // Garantir valores válidos de matiz, saturação e brilho
         if (std::isnan(h) || std::isinf(h)) h = 0.0f;
         s = std::max(0.5f, std::min(1.0f, s)); // Forçar saturação mínima de 50%
         v = std::max(0.5f, std::min(1.0f, v)); // Forçar brilho mínimo de 50%
         
-        // Mapeamento de velocidade para matiz
-        // Baixa velocidade: Azul/Verde (240/120)
-        // Alta velocidade: Vermelho/Laranja (0/30)
         float speedFactor = std::min(1.0f, speed / 500.0f); 
         float newHue = 240.0f - speedFactor * 240.0f; 
         
-        // Pulsar saturação e brilho baseado na fase
         float pulseFactor = (std::sin(m_colorPulsePhase) + 1.0f) * 0.1f;
         s = std::min(1.0f, s + pulseFactor);
         v = std::min(1.0f, v + pulseFactor);
@@ -457,7 +292,6 @@ void Particle::draw(sf::RenderTarget& target, sf::RenderStates states) const {
             circle.setFillColor(m_sprite.getColor());
             target.draw(circle, states);
         } else if (m_texture) {
-            // Com sprite
             target.draw(m_sprite, states);
         } else {
             sf::CircleShape circle(radius);
