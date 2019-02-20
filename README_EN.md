@@ -5,7 +5,7 @@ A simulator with some physics. Made to play around with C++ & SFML, and, who kno
 
 <br>
 
-<img src="gifrec.gif" alt="Particle Simulator Demo" width="650"/>
+<img src="gifs/v09.gif" alt="Particle Simulator Demo" width="650"/>
 
 <br>
 
@@ -23,14 +23,18 @@ In summary: Verlet method doesn't just consider current position and velocity, b
 **Keyboard:**
 - `G`: toggles gravity
 - `R`: toggles repulsion
+- `L`: toggles particle collisions
 - `M`: toggles mouse force
 - `N`: switches between attract and repel
+- `F`: Toggles mouse force style
 - `+/-`: adjusts force intensity
 - `C`: clears all particles
 - `Space`: creates random particles
+- `T`: Toggles particle visual type (Original/Crystal)
+- `K`: Cycles through different cursor types
+- `S`: Shows/hides on-screen instructions
+- `I/U`: Increases/decreases particle bounciness
 - `ESC`: exits
-
-## How to Use
 
 ### Compile:
 ```
@@ -42,17 +46,22 @@ compile.bat
 ParticleSimulator.exe
 ```
 
-### Or using the script:
-```
-run.bat
-```
-
-
 **Requirements:** C++ 11+ and SFML 2.5+
 
 Performance may vary with many particles/interactions - Use at your own risk.
 
 ~Works on my machine~
+
+<details>
+<summary>Older Versions</summary>
+
+#### v0.5
+<img src="gifs/gifrec.gif" alt="v0.5 Demo" width="650"/>
+
+#### v0.1
+<img src="gifs/v01.gif" alt="v0.1 Demo" width="650"/>
+
+</details>
 
 <div align="right">
   <sub><a href="https://github.com/augustoperin">Augusto Cesar Perin</a> | 2018-2019</sub>

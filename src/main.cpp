@@ -1,7 +1,7 @@
 /*
  * Particle Simulator
  * 
- * Developed by: Augusto César Perin
+ * by: Augusto César Perin
  *  2018~2019
  */
 #include <SFML/Graphics.hpp>
@@ -59,6 +59,7 @@ struct AppState {
 void setup(sf::RenderWindow& window, AppState& state);
 void processInput(sf::RenderWindow& window, AppState& state);
 void updatePhysics(AppState& state, float dt);
+
 void updateUI(sf::RenderWindow& window, AppState& state, float real_dt);
 void render(sf::RenderWindow& window, AppState& state);
 
@@ -68,7 +69,7 @@ int main()
         const int WIDTH = 800;
         const int HEIGHT = 600;
     
-    std::string windowTitle = "Simulador de Partículas - por Augusto César Perin";
+    std::string windowTitle = "Chaos - by Augusto César Perin";
     sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), sf::String::fromUtf8(windowTitle.begin(), windowTitle.end()));
         window.setFramerateLimit(120);
 
@@ -126,14 +127,15 @@ void setup(sf::RenderWindow& window, AppState& state) {
     float scaleY = static_cast<float>(windowSize.y) / textureSize.y;
     state.backgroundSprite.setScale(scaleX, scaleY);
 
-    if (!state.font.loadFromFile("assets/font.ttf")) {
-        if (!state.font.loadFromFile("C:/Windows/Fonts/consola.ttf")) {
-            std::cerr << "Aviso: Nenhuma fonte encontrada. O texto não será exibido." << std::endl;
+    if (!state.font.loadFromFile("assets/fonts/PressStart2P-Regular.ttf")) {
+        if (!state.font.loadFromFile("C:/Windows/Fonts/arial.ttf")) {
+            std::cerr << "ERRO FATAL: Nenhuma fonte encontrada. O texto não será exibido." << std::endl;
+            throw std::runtime_error("Font not found");
         }
     }
     
     state.instructions.setFont(state.font);
-    state.instructions.setCharacterSize(12); 
+    state.instructions.setCharacterSize(8); 
     state.instructions.setFillColor(sf::Color::White);
     state.instructions.setPosition(10.f, 10.f); 
     
@@ -263,7 +265,7 @@ void updateUI(sf::RenderWindow& window, AppState& state, float real_dt) {
         "+/-: Intensidade da Força (" + std::to_string(static_cast<int>(state.mouseForceStrength)) + ")\n"
         "I/U: Restituição (" + std::to_string(state.collisionRestitution).substr(0, 4) + ")\n"
         "T: Tipo de Partícula (" + state.particleTypeName + ")\n"
-        "K: Alternar Cursor\n"
+        "K: Alternar Mouse\n"
         "S: Mostrar/Ocultar Controles\n"
         "C: Limpar Tudo | Espaço: Adicionar Aleatórias\n\n"
         "Partículas: " + std::to_string(state.particleSystem.getParticleCount()) +
@@ -272,10 +274,15 @@ void updateUI(sf::RenderWindow& window, AppState& state, float real_dt) {
 }
 
 void render(sf::RenderWindow& window, AppState& state) {
-        window.clear(sf::Color(10, 5, 15)); 
+    window.clear();
     window.draw(state.backgroundSprite);
+
     state.particleSystem.draw(window);
-    window.draw(state.instructions);
+    
+    if (state.showInstructions) {
+        window.draw(state.instructions);
+    }
+
     state.mousart.draw(window);
-        window.display();
+    window.display();
 }

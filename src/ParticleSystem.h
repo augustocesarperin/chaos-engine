@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <SFML/Graphics.hpp>
+#include <map>
 
 class ParticleSystem {
 public:
@@ -44,9 +45,12 @@ private:
     void applyInteractiveForces(float repulsionStrength);
     void applyGravityEffect(float gravitationalAcceleration);
     void applyMouseForce(const sf::Vector2f& mousePosition, float strength, bool attractMode, int forceMode);
+    void updateHeadVertices();
 
     void syncToSoA();
     void syncFromSoA(float dt);
+
+    void updateTrailVertices();
 
     ParticlePool m_particlePool;
     std::unique_ptr<SpatialGrid> m_grid;
@@ -56,6 +60,10 @@ private:
     static constexpr size_t INITIAL_POOL_CAPACITY = 1000;
     static constexpr float GRID_CELL_SIZE = 60.0f;
     static constexpr float MOUSE_FORCE_STEP = 10000.0f;
+
+    sf::VertexArray m_trailVertices;
+    sf::VertexArray m_untexturedHeadVertices;
+    std::map<std::shared_ptr<sf::Texture>, sf::VertexArray> m_texturedHeadBatches;
 
     std::vector<float> m_soa_positions;
     std::vector<float> m_soa_velocities;

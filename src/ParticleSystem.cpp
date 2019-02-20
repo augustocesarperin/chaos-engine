@@ -6,6 +6,8 @@
 ParticleSystem::ParticleSystem(float width, float height)
     : m_particlePool(INITIAL_POOL_CAPACITY), m_width(width), m_height(height) {
     m_grid = std::make_unique<SpatialGrid>(width, height, GRID_CELL_SIZE);
+    m_trailVertices.setPrimitiveType(sf::TriangleStrip);
+    m_untexturedHeadVertices.setPrimitiveType(sf::Triangles);
 }
 
 ParticleSystem::~ParticleSystem() {
@@ -90,6 +92,9 @@ void ParticleSystem::update(float deltaTime, const PhysicsInputState& inputs) {
     if (inputs.collisionsEnabled) {
         handleCollisions(inputs.collisionRestitution, deltaTime);
     }
+    
+    updateTrailVertices();
+    updateHeadVertices();
 }
 
 void ParticleSystem::syncToSoA() {
@@ -125,7 +130,7 @@ void ParticleSystem::syncFromSoA(float dt) {
     const auto& activeParticles = m_particlePool.getActiveParticles();
     const size_t numParticles = activeParticles.size();
 
-    // Copiar dados de volta do SoA para o AoS
+
     for (size_t i = 0; i < numParticles; ++i) {
         Particle* p = activeParticles[i];
         p->setPosition({m_soa_positions[i * 2], m_soa_positions[i * 2 + 1]});
@@ -161,16 +166,12 @@ void ParticleSystem::draw(sf::RenderWindow& window) {
         view.getSize().y + MARGIN * 2.0f
     );
     
-    const auto& activeParticles = m_particlePool.getActiveParticles();
-    
-    int particlesDrawn = 0;
-    for (const auto& particle : activeParticles) {
-        if (!particle) {
-            continue;
-        }
-        
-        particle->renderTo(window, sf::RenderStates::Default);
-        particlesDrawn++;
+    window.draw(m_trailVertices, sf::BlendAdd);
+
+    window.draw(m_untexturedHeadVertices);
+    for (const auto& pair : m_texturedHeadBatches) {
+        sf::RenderStates states(pair.first.get());
+        window.draw(pair.second, states);
     }
 }
 
@@ -200,7 +201,7 @@ void ParticleSystem::applyInteractiveForces(float strength) {
             const float dy = p1_pos.y - p2_pos.y;
             
             const float distSq = dx * dx + dy * dy;
-            
+
             if (distSq > 0.0001f) {
                 const float dist = sqrt(distSq);
                 const float effectiveDist = (dist < MIN_DISTANCE) ? MIN_DISTANCE : dist;
@@ -337,15 +338,10 @@ void ParticleSystem::applyMouseForce(const sf::Vector2f& mousePosition, float st
                     sf::Vector2f tangentForce;
 
                     if (distance > orbitRadius) {
-                        // --- Zona de Captura (Longe) ---
-                        // Puxa forte para o centro.
                         radialForce = (direction / distance) * forceMagnitude * 2.0f;
-                        // Giro fraco para iniciar a espiral.
                         sf::Vector2f tangent = {-direction.y, direction.x};
                         tangentForce = (tangent / distance) * forceMagnitude * 0.5f;
                     } else {
-                        // --- Zona de Órbita (Perto) ---
-                        // A atração vira uma leve repulsão para evitar o colapso no centro.
                         float pushStrength = forceMagnitude * (1.0f - distance / orbitRadius);
                         radialForce = -(direction / distance) * pushStrength * 0.5f;
 
@@ -404,4 +400,98 @@ Particle* ParticleSystem::generateRandomParticle(float minMass, float maxMass) {
     float vy = std::uniform_real_distribution<float>(-50.0f, 50.0f)(gen);
     
     return addParticle(mass, sf::Vector2f(x, y), sf::Vector2f(vx, vy), color);
+}
+
+void ParticleSystem::updateTrailVertices() {
+    m_trailVertices.clear();
+    const auto& activeParticles = m_particlePool.getActiveParticles();
+
+    for (const auto* particle : activeParticles) {
+        auto trail = particle->getTrailData();
+        if (trail.size < 2) {
+            continue;
+        }
+
+        for (int i = 0; i < trail.size; ++i) {
+            int current_idx = (trail.head - trail.size + i + Particle::MAX_TRAIL_LENGTH) % Particle::MAX_TRAIL_LENGTH;
+            
+            sf::Vector2f p = trail.buffer[current_idx].position;
+            sf::Vector2f direction;
+
+            if (i < trail.size - 1) {
+                int next_idx = (trail.head - trail.size + i + 1 + Particle::MAX_TRAIL_LENGTH) % Particle::MAX_TRAIL_LENGTH;
+                direction = trail.buffer[next_idx].position - p;
+            } else {
+                int prev_idx = (trail.head - trail.size + i - 1 + Particle::MAX_TRAIL_LENGTH) % Particle::MAX_TRAIL_LENGTH;
+                direction = p - trail.buffer[prev_idx].position;
+            }
+
+            float length = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+            if (length < 0.1f) length = 0.1f;
+
+            sf::Vector2f unitPerpendicular(-direction.y / length, direction.x / length);
+
+            float thickness_ratio = static_cast<float>(i) / (trail.size - 1);
+            float ease_out_ratio = thickness_ratio * (2.0f - thickness_ratio);
+            float thickness = particle->getRadius() * 0.7f * ease_out_ratio;
+            
+            sf::Vector2f offset = unitPerpendicular * thickness;
+            
+            sf::Color color = trail.buffer[current_idx].color;
+
+            m_trailVertices.append(sf::Vertex(p - offset, color));
+            m_trailVertices.append(sf::Vertex(p + offset, color));
+        }
+
+        if (m_trailVertices.getVertexCount() > 0) {
+            m_trailVertices.append(m_trailVertices[m_trailVertices.getVertexCount() - 1]);
+        }
+    }
+}
+
+void ParticleSystem::updateHeadVertices() {
+    m_untexturedHeadVertices.clear();
+    for (auto& pair : m_texturedHeadBatches) {
+        pair.second.clear();
+    }
+
+    const auto& activeParticles = m_particlePool.getActiveParticles();
+    for (const auto* p : activeParticles) {
+        sf::Vector2f pos = p->getPosition();
+        float radius = p->getRadius();
+        sf::Color color = p->getColor();
+
+        sf::Vector2f topLeft(pos.x - radius, pos.y - radius);
+        sf::Vector2f topRight(pos.x + radius, pos.y - radius);
+        sf::Vector2f bottomRight(pos.x + radius, pos.y + radius);
+        sf::Vector2f bottomLeft(pos.x - radius, pos.y + radius);
+
+        auto texture = p->getTexture();
+        if (texture) {
+            if (m_texturedHeadBatches.find(texture) == m_texturedHeadBatches.end()) {
+                m_texturedHeadBatches[texture].setPrimitiveType(sf::Quads);
+            }
+            sf::VertexArray& batch = m_texturedHeadBatches[texture];
+            sf::Vector2u texSize = texture->getSize();
+            batch.append(sf::Vertex(topLeft, color, {0.f, 0.f}));
+            batch.append(sf::Vertex(topRight, color, {static_cast<float>(texSize.x), 0.f}));
+            batch.append(sf::Vertex(bottomRight, color, {static_cast<float>(texSize.x), static_cast<float>(texSize.y)}));
+            batch.append(sf::Vertex(bottomLeft, color, {0.f, static_cast<float>(texSize.y)}));
+        } else {
+            const int pointCount = 12;
+            const float angleIncrement = (2.0f * 3.14159265f) / pointCount;
+
+            for (int i = 0; i < pointCount; ++i) {
+                float angle1 = i * angleIncrement;
+                float angle2 = (i + 1) * angleIncrement;
+
+                sf::Vector2f p1(pos.x + radius * std::cos(angle1), pos.y + radius * std::sin(angle1));
+                sf::Vector2f p2(pos.x + radius * std::cos(angle2), pos.y + radius * std::sin(angle2));
+
+                m_untexturedHeadVertices.append(sf::Vertex(pos, color));
+                m_untexturedHeadVertices.append(sf::Vertex(p1, color));
+                m_untexturedHeadVertices.append(sf::Vertex(p2, color));
+            }
+        }
+    }
 }

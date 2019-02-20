@@ -18,7 +18,8 @@ enum class ParticleType {
 
 class Particle : public sf::Drawable {
 public:
-    Particle(float mass, const sf::Vector2f& position, const sf::Vector2f& velocity, const sf::Color& color);
+    Particle() = default;
+    void initialize(float mass, const sf::Vector2f& position, const sf::Vector2f& velocity, const sf::Color& color);
     virtual ~Particle() = default;
 
     void updateVisuals(float dt);
@@ -46,15 +47,34 @@ public:
     void setParticleType(ParticleType type);
     ParticleType getParticleType() const { return m_type; }
     
+    std::shared_ptr<sf::Texture> getTexture() const { return m_texture; }
+
     size_t getPoolIndex() const { return poolIndex; }
     void setPoolIndex(size_t index) { poolIndex = index; }
     
     size_t getSoAIndex() const { return m_soaIndex; }
     void setSoAIndex(size_t index) { m_soaIndex = index; }
     
+    struct TrailPoint {
+        sf::Vector2f position;
+        sf::Color color;
+    };
+
+    struct TrailData {
+        const TrailPoint* buffer;
+        int head;
+        int size;
+    };
+
+    TrailData getTrailData() const {
+        return { m_trailBuffer, m_trailHead, m_trailSize };
+    }
+
     void renderTo(sf::RenderTarget& target, sf::RenderStates states = sf::RenderStates::Default) const {
         draw(target, states);
     }
+
+    static constexpr int MAX_TRAIL_LENGTH = 60;
 
 private:
     void updateTrail();
@@ -76,13 +96,7 @@ private:
     
     static constexpr float DAMPING = 0.998f; 
     
-    static constexpr int MAX_TRAIL_LENGTH = 15;
     static constexpr float TRAIL_FADE_RATE = 0.85f;
-    
-    struct TrailPoint {
-        sf::Vector2f position;
-        sf::Color color;
-    };
     
     TrailPoint m_trailBuffer[MAX_TRAIL_LENGTH];
     int m_trailHead = 0;

@@ -9,11 +9,21 @@
 #include <map>
 #include <memory>
 
-Particle::Particle(float mass, const sf::Vector2f& position, const sf::Vector2f& velocity, const sf::Color& color)
-    : vel(velocity), m_accel(0.0f, 0.0f), mass(mass), m_texture(nullptr), m_type(ParticleType::Original),
-      m_colorPulsePhase(0.0f), m_useSpeedColor(true) {
-    
-    radius = 5.0f + mass * 1.0f;
+/* 
+This constructor is obsolete and has been removed. 
+The logic was moved to the initialize() method.
+*/
+
+void Particle::initialize(float mass, const sf::Vector2f& position, const sf::Vector2f& velocity, const sf::Color& color) {
+    this->vel = velocity;
+    this->m_accel = {0.0f, 0.0f};
+    this->mass = mass;
+    this->m_texture = nullptr;
+    this->m_type = ParticleType::Original;
+    this->m_colorPulsePhase = 0.0f;
+    this->m_useSpeedColor = true;
+
+    this->radius = 5.0f + mass * 1.0f;
     sf::Color enhancedColor = color;
     
     float h, s, v;
@@ -32,8 +42,16 @@ Particle::Particle(float mass, const sf::Vector2f& position, const sf::Vector2f&
     
     m_sprite.setPosition(position);
     
-    m_trailBuffer[0] = {position, enhancedColor};
+    // Initialize the entire trail buffer to prevent reading garbage data
+    for (int i = 0; i < MAX_TRAIL_LENGTH; ++i) {
+        m_trailBuffer[i] = {position, sf::Color::Transparent};
+    }
+
+    // Set the first actual point
     m_trailHead = 0;
+    m_trailBuffer[m_trailHead].position = position;
+    m_trailBuffer[m_trailHead].color = enhancedColor;
+    m_trailHead = 1;
     m_trailSize = 1;
     
     setParticleType(m_type);
@@ -137,14 +155,18 @@ void Particle::HSVtoRGB(float h, float s, float v, uint8_t& r, uint8_t& g, uint8
 }
 
 void Particle::updateVisuals(float dt) {
-    // A posição da partícula já foi atualizada pela física em C.
-    // Usamos a posição atual para o rastro.
+    // A posição da partícula já foi atualizada pela física em C
     sf::Vector2f currentPos = m_sprite.getPosition();
     
+
+    const float speed = std::sqrt(vel.x * vel.x + vel.y * vel.y);
+    const float speedFactor = 0.08f;
+    int targetTrailLength = static_cast<int>(speed * speedFactor);
+    targetTrailLength = std::max(1, std::min(MAX_TRAIL_LENGTH, targetTrailLength));
+
+
     updateTrailColor();
     
-    // Adicionar nova posição ao rastro.
-    // Usamos o último ponto adicionado para checar a distância, para evitar rastros "pontilhados".
     const float minDistanceSq = 4.0f; 
     sf::Vector2f lastTrailPos = m_trailBuffer[ (m_trailHead -1 + MAX_TRAIL_LENGTH) % MAX_TRAIL_LENGTH].position;
     const float dx = currentPos.x - lastTrailPos.x;
@@ -160,22 +182,24 @@ void Particle::updateVisuals(float dt) {
         
         m_trailHead = (m_trailHead + 1) % MAX_TRAIL_LENGTH;
         
-        if (m_trailSize < MAX_TRAIL_LENGTH) {
-            m_trailSize++;
-        }
+        m_trailSize = std::min(MAX_TRAIL_LENGTH, m_trailSize + 1);
     }
     
-    // Atualizar cores do rastro - fading
+    // Ajusta o tamanho do rastro para o alvo
+    if (m_trailSize > targetTrailLength) {
+        m_trailSize--;
+    }
+
+    // Atualiza cores do rastro 
     for (int i = 1; i < m_trailSize; ++i) {
         int idx = (m_trailHead - i + MAX_TRAIL_LENGTH) % MAX_TRAIL_LENGTH;
         m_trailBuffer[idx].color.a = static_cast<uint8_t>(m_trailBuffer[idx].color.a * TRAIL_FADE_RATE);
     }
     
-    // Fase de pulsação de cor
+    // Pulsação 
     m_colorPulsePhase += dt * 2.0f;
     if (m_colorPulsePhase > 2.0f * M_PI) m_colorPulsePhase -= 2.0f * M_PI;
     
-    // Rotacionar o sprite p efeito visual
     static float rotationSpeed = 15.0f;
     m_sprite.rotate(rotationSpeed * dt);
 }
@@ -205,8 +229,8 @@ void Particle::updateTrailColor() {
         RGBtoHSV(m_baseColor.r, m_baseColor.g, m_baseColor.b, h, s, v);
         
         if (std::isnan(h) || std::isinf(h)) h = 0.0f;
-        s = std::max(0.5f, std::min(1.0f, s)); // Forçar saturação mínima de 50%
-        v = std::max(0.5f, std::min(1.0f, v)); // Forçar brilho mínimo de 50%
+        s = std::max(0.5f, std::min(1.0f, s)); 
+        v = std::max(0.5f, std::min(1.0f, v)); 
         
         float speedFactor = std::min(1.0f, speed / 500.0f); 
         float newHue = 240.0f - speedFactor * 240.0f; 
@@ -235,70 +259,29 @@ void Particle::draw(sf::RenderTarget& target, sf::RenderStates states) const {
         radius = m_sprite.getScale().x * m_texture->getSize().x * 0.5f;
     }
 
-    try {
-        if (!Utility::isVisible(particlePos, radius, target.getView())) {
-            return;
-        }
+    if (!Utility::isVisible(particlePos, radius, target.getView())) {
+        return;
+    }
         
-        for (int i = m_trailSize - 1; i > 0; --i) {
-            try {
-                int idx = (m_trailHead - i + MAX_TRAIL_LENGTH) % MAX_TRAIL_LENGTH;
-                
-                if (idx < 0 || idx >= MAX_TRAIL_LENGTH) {
-                    continue;
-                }
-                
-                const sf::Vector2f& pos = m_trailBuffer[idx].position;
-                const sf::Color& color = m_trailBuffer[idx].color;
-                
-                if (!Utility::isVisible(pos, radius * 0.5f, target.getView())) {
-                    continue;
-                }
-                const float trailFactor = static_cast<float>(i) / m_trailSize;
-                const float trailRadius = radius * (0.5f + 0.5f * trailFactor);
-                
-                // Desenhar círculos para rastros de partículas originais
-                if (m_type == ParticleType::Original) {
-                    sf::CircleShape trailCircle(trailRadius);
-                    trailCircle.setPosition(pos.x - trailRadius, pos.y - trailRadius);
-                    trailCircle.setFillColor(color);
-                    target.draw(trailCircle, states);
-                }
-                else if (m_texture) {
-                    sf::Sprite trailSprite(*m_texture);
-                    
-                    const sf::Vector2u& textureSize = m_texture->getSize();
-                    const float halfTexX = textureSize.x / 2.0f;
-                    const float halfTexY = textureSize.y / 2.0f;
-                    trailSprite.setOrigin(halfTexX, halfTexY);
-                    
-                    const float maxTextureDim = static_cast<float>(std::max(textureSize.x, textureSize.y));
-                    const float scale = trailRadius * 10.0f / maxTextureDim;
-                    
-                    trailSprite.setScale(scale, scale);
-                    trailSprite.setPosition(pos);
-                    trailSprite.setColor(color);
-                    
-                    target.draw(trailSprite, states);
-                }
-            } catch (...) {
-                // Silenciar erro durante trail
-            }
-        }
-        
+    // O loop de renderização do rastro foi removido daqui.
+    // A renderização agora é feita em batch pelo ParticleSystem.
+
+    if (m_type == ParticleType::Crystal && m_texture) {
+        target.draw(m_sprite, states);
+    } else {
         if (m_type == ParticleType::Original) {
             sf::CircleShape circle(radius);
-            circle.setPosition(particlePos.x - radius, particlePos.y - radius);
+            circle.setOrigin(radius, radius);
+            circle.setPosition(particlePos);
             circle.setFillColor(m_sprite.getColor());
             target.draw(circle, states);
-        } else if (m_texture) {
-            target.draw(m_sprite, states);
         } else {
+             // Fallback para partículas de cristal que falharam ao carregar a textura
             sf::CircleShape circle(radius);
-            circle.setPosition(particlePos.x - radius, particlePos.y - radius);
-            circle.setFillColor(m_sprite.getColor());
+            circle.setOrigin(radius, radius);
+            circle.setPosition(particlePos);
+            circle.setFillColor(sf::Color::White); // Cor de fallback distinta
             target.draw(circle, states);
         }
-    } catch(...) {
     }
 }

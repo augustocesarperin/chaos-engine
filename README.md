@@ -1,11 +1,11 @@
 # Simulador de Partículas
 
-Um simulador com algumas migalhas de física. Feito para fins didáticos e procrastinatórios em C++ & SFML.
+Um simulador com algumas migalhas de física. Feito para fins didáticos e procrastinatórios em C/C++ & SFML.
 
 
 <br>
 
-<img src="gifrec.gif" alt="Demonstração do Simulador de Partículas" width="650"/>
+<img src="gifs/v09.gif" alt="Demonstração da Versão Final" width="650"/>
 
 <br>
 
@@ -25,12 +25,12 @@ Em resumo: O método Verlet não se preocupa só com a posição atual e velocid
 - `R`: liga/desliga repulsão
 - `M`: liga/desliga força do mouse
 - `N`: alterna entre atrair e repelir
+- `F`: Troca o estilo de força do mouse
 - `+/-`: ajusta intensidade da força
 - `C`: limpa todas as partículas
 - `Espaço`: cria partículas aleatórias
 - `ESC`: sai
 
-## Como Usar
 
 ### Compilar:
 ```
@@ -39,20 +39,26 @@ compile.bat
 
 ### Executar:
 ```
-ParticleSimulator.exe
-```
-
-### Ou usando o script:
-```
-run.bat
+Chaos.exe
 ```
 
 
 **Requisitos:** C++ 11+ e SFML 2.5+
 
-Performance pode variar com muitas partículas/interações - Use por sua conta e risco.
+O desempenho pode variar com muitas partículas/interações - Use por sua conta e risco.
 
 ~Na minha máquina funciona~
+
+<details>
+<summary>Versões Anteriores</summary>
+
+#### v0.5
+<img src="gifs/gifrec.gif" alt="Demonstração da Versão 0.5" width="650"/>
+
+#### v0.1
+<img src="gifs/v01.gif" alt="Demonstração da Versão 0.1" width="650"/>
+
+</details>
 
 <div align="right">
   <sub><a href="https://github.com/augustoperin">Augusto Cesar Perin</a> | 2018-2019</sub>
