@@ -1,25 +1,45 @@
-
+# Executáveis e Bibliotecas
 *.exe
-!ParticleSimulator.exe
+*.dll
+*.so
+*.a
 
-!*.dll
+# Arquivos de objeto e intermediários
 *.o
 *.obj
-build/
-Debug/
-Release/
 *.pdb
-.vs/
-.vscode/
-*.suo
-*.user
-*~
-*.swp
-*.bak
-*.tmp
-stdout.txt
-stderr.txt
-compile_run.bat
-simple_test.cpp
+*.ilk
+*.pch
+
+# Pastas de Build e Cache
+/build/
+/bin/
+/Debug/
+/Release/
+/.vs/
+/.vscode/
+/__pycache__/
+*.pyc
+
+# Pacotes e Pastas de Distribuição
+/dist/
+/dist_*
+*.zip
+*.tar.gz
+
+# Arquivos de Cache de SO e Editores
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
+*.user
+*.suo
+*~
+*.bak
+*.tmp
+/.cursor/
+/memory-bank/
+
+# Logs e arquivos de saída
+stdout.txt
+stderr.txt

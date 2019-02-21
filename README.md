@@ -1,6 +1,6 @@
 # Simulador de Partículas
 
-Um simulador com algumas migalhas de física. Feito para fins didáticos e procrastinatórios em C/C++ & SFML.
+Uma engine com algumas migalhas de física e muitas otimizações. Feito para fins didáticos e procrastinatórios em C/C++ & SFML.
 
 
 <br>
@@ -9,16 +9,17 @@ Um simulador com algumas migalhas de física. Feito para fins didáticos e procr
 
 <br>
 
-## Verlet
 
-O simulador está utilizando integração de Verlet para os cálculos de movimento. Diferente do método Euler (usado nas versões iniciais), o método Verlet evita que as partículas atravessem umas às outras quando estão em alta velocidade, ou quando o FPS cai muito. O sistema também simula perda de energia nas colisões, impedindo que as partículas fiquem quicando como se não houvesse amanhã.
-Em resumo: O método Verlet não se preocupa só com a posição atual e velocidade, mas também lembra da posição anterior e aceleração pra prever onde a partícula deveria estar, como se cada ppartícula tivesse uma "memória". Isso torna os movimentos mais suaves/realistas.
+## Como funciona a física? (Integração Verlet)
+
+O programa usa integração de Verlet para os cálculos de movimento. Diferente do método Euler (usado nas versões iniciais), o método Verlet evita que as partículas atravessem umas às outras quando estão em alta velocidade, ou quando o FPS cai muito. O sistema também simula perda de energia nas colisões, e evita que elas fiquem ricocheteando ad infinitum.
+
 
 ## Controles
 
 **Mouse:**
 - Botão esquerdo: cria partícula normal
-- Botão direito: cria partícula maior
+- Botão direito: cria partícula grande
 
 **Teclado:**
 - `G`: liga/desliga gravidade
@@ -29,25 +30,30 @@ Em resumo: O método Verlet não se preocupa só com a posição atual e velocid
 - `+/-`: ajusta intensidade da força
 - `C`: limpa todas as partículas
 - `Espaço`: cria partículas aleatórias
-- `ESC`: sai
+- `ESC`: bye
 
 
-### Compilar:
+### Windows
 ```
 compile.bat
 ```
+> **Nota:** É necessário ter o [MSYS2](https://www.msys2.org/) com as ferramentas MinGW (g++, make, cmake) e SFML instalados e no PATH do sistema.
 
-### Executar:
+### Linux
+```sh
+sudo apt update && sudo apt install build-essential git cmake libsfml-dev
+
+git clone https://github.com/augustocesarperin/chaos-engine.git
+cd chaos-engine
+mkdir build && cd build
+cmake ..
+make
+./Chaos
 ```
-Chaos.exe
-```
 
+Apesasar de otimizado, o desempenho pode variar com muitas partículas/interações. Use por sua conta e risco.
 
-**Requisitos:** C++ 11+ e SFML 2.5+
-
-O desempenho pode variar com muitas partículas/interações - Use por sua conta e risco.
-
-~Na minha máquina funciona~
+(~Na minha máquina funciona~)
 
 <details>
 <summary>Versões Anteriores</summary>

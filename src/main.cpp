@@ -167,7 +167,7 @@ void processInput(sf::RenderWindow& window, AppState& state) {
         
         if (event.type == sf::Event::MouseButtonPressed) {
             sf::Vector2f position = window.mapPixelToCoords({event.mouseButton.x, event.mouseButton.y});
-            position += state.mousart.getCursorTipOffset(window);
+            position += state.mousart.getCursorTipOffset();
                 
                 std::random_device rd;
                 std::mt19937 gen(rd());

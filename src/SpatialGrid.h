@@ -9,10 +9,8 @@ public:
     
     void clear();
     
-    // Insere uma partícula na célula apropriada da grade.
     void insert(Particle* particle);
     
-    // Obtém uma lista de partículas nas células vizinhas à de uma partícula de referência.
     std::vector<Particle*> getNearbyParticles(Particle* particle);
 
 private:

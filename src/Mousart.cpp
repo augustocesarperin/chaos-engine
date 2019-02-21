@@ -1,7 +1,7 @@
 #include "Mousart.h"
 #include <iostream>
 
-Mousart::Mousart() : m_isForceActive(false), m_hotspot(0, 0), m_currentType(CursorType::SKULL) {
+Mousart::Mousart() : m_isForceActive(false), m_currentType(CursorType::SKULL), m_hotspot(0, 0) {
     m_cursorTextures.resize(static_cast<size_t>(CursorType::COUNT));
     m_cursorScales.resize(static_cast<size_t>(CursorType::COUNT));
     m_cursorTipOffsets.resize(static_cast<size_t>(CursorType::COUNT));
@@ -111,7 +111,7 @@ void Mousart::draw(sf::RenderWindow& window) {
     window.draw(m_cursorSprite);
 }
 
-sf::Vector2f Mousart::getCursorTipOffset(const sf::RenderWindow& window) const {
+sf::Vector2f Mousart::getCursorTipOffset() const {
     if (!m_isForceActive && m_currentType == CursorType::SKULL) {
         return sf::Vector2f(-12.0f, -27.0f);
     }

@@ -9,11 +9,6 @@
 #include <map>
 #include <memory>
 
-/* 
-This constructor is obsolete and has been removed. 
-The logic was moved to the initialize() method.
-*/
-
 void Particle::initialize(float mass, const sf::Vector2f& position, const sf::Vector2f& velocity, const sf::Color& color) {
     this->vel = velocity;
     this->m_accel = {0.0f, 0.0f};
@@ -58,7 +53,6 @@ void Particle::initialize(float mass, const sf::Vector2f& position, const sf::Ve
 }
 
 void Particle::setParticleType(ParticleType type) {
-    // Preservar a cor atual antes de mudar o tipo
     sf::Color currentColor = m_sprite.getColor();
     
     m_type = type;
@@ -123,7 +117,6 @@ void Particle::RGBtoHSV(uint8_t r, uint8_t g, uint8_t b, float& h, float& s, flo
     float cmin = std::min(std::min(rf, gf), bf);
     float delta = cmax - cmin;
     
-    // Hue
     if (delta == 0) h = 0;
     else if (cmax == rf) h = fmod(((gf - bf) / delta), 6.0f) * 60.0f;
     else if (cmax == gf) h = ((bf - rf) / delta + 2.0f) * 60.0f;
@@ -185,12 +178,10 @@ void Particle::updateVisuals(float dt) {
         m_trailSize = std::min(MAX_TRAIL_LENGTH, m_trailSize + 1);
     }
     
-    // Ajusta o tamanho do rastro para o alvo
     if (m_trailSize > targetTrailLength) {
         m_trailSize--;
     }
 
-    // Atualiza cores do rastro 
     for (int i = 1; i < m_trailSize; ++i) {
         int idx = (m_trailHead - i + MAX_TRAIL_LENGTH) % MAX_TRAIL_LENGTH;
         m_trailBuffer[idx].color.a = static_cast<uint8_t>(m_trailBuffer[idx].color.a * TRAIL_FADE_RATE);
@@ -224,7 +215,6 @@ void Particle::updateTrailColor() {
     if (m_useSpeedColor) {
         float speed = sqrtf(vel.x * vel.x + vel.y * vel.y);
         
-        // Extrair componentes HSV da cor base
         float h, s, v;
         RGBtoHSV(m_baseColor.r, m_baseColor.g, m_baseColor.b, h, s, v);
         
@@ -263,9 +253,6 @@ void Particle::draw(sf::RenderTarget& target, sf::RenderStates states) const {
         return;
     }
         
-    // O loop de renderização do rastro foi removido daqui.
-    // A renderização agora é feita em batch pelo ParticleSystem.
-
     if (m_type == ParticleType::Crystal && m_texture) {
         target.draw(m_sprite, states);
     } else {
@@ -276,11 +263,10 @@ void Particle::draw(sf::RenderTarget& target, sf::RenderStates states) const {
             circle.setFillColor(m_sprite.getColor());
             target.draw(circle, states);
         } else {
-             // Fallback para partículas de cristal que falharam ao carregar a textura
             sf::CircleShape circle(radius);
             circle.setOrigin(radius, radius);
             circle.setPosition(particlePos);
-            circle.setFillColor(sf::Color::White); // Cor de fallback distinta
+            circle.setFillColor(sf::Color::White); 
             target.draw(circle, states);
         }
     }

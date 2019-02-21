@@ -38,19 +38,16 @@ void update_particles_c(
             accelerations[i * 2 + 1] += drag_y;
         }
 
-        // Método de Verlet: x_new = 2*x_current - x_previous + a*dt²
+        // Método de Verlet
         float new_x = 2.0f * positions[i * 2] - previous_positions[i * 2] + accelerations[i * 2] * dt * dt;
         float new_y = 2.0f * positions[i * 2 + 1] - previous_positions[i * 2 + 1] + accelerations[i * 2 + 1] * dt * dt;
         
-        // Salvar posição atual como anterior para próxima iteração
         previous_positions[i * 2] = positions[i * 2];
         previous_positions[i * 2 + 1] = positions[i * 2 + 1];
         
-        // Atualizar posição
         positions[i * 2] = new_x;
         positions[i * 2 + 1] = new_y;
         
-        // Calcular velocidade para uso em outras partes do sistema
         velocities[i * 2] = (positions[i * 2] - previous_positions[i * 2]) / dt;
         velocities[i * 2 + 1] = (positions[i * 2 + 1] - previous_positions[i * 2 + 1]) / dt;
         
@@ -59,11 +56,11 @@ void update_particles_c(
         velocities[i * 2] *= DAMPING;
         velocities[i * 2 + 1] *= DAMPING;
         
-        // Corrigir posição anterior baseada na nova velocidade amortecida
+        // Corrigir posição anterior baseada na nova vel
         previous_positions[i * 2] = positions[i * 2] - velocities[i * 2] * dt;
         previous_positions[i * 2 + 1] = positions[i * 2 + 1] - velocities[i * 2 + 1] * dt;
         
-        // Verificar colisões com as bordas
+        // Verificar colisoes com bordas
         float radius = radii[i];
         if (positions[i * 2] < radius) {
             positions[i * 2] = radius;

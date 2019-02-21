@@ -152,8 +152,6 @@ void ParticleSystem::applyGravityEffect(float gravitationalAcceleration) {
 }
 
 void ParticleSystem::draw(sf::RenderWindow& window) {
-    // Obter o tamanho da janela para determinar a área visível
-    const sf::Vector2u windowSize = window.getSize();
     const sf::View& view = window.getView();
     
     // Calcular os limites da área visível com uma margem para partículas grandes
