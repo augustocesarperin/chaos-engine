@@ -1,43 +1,47 @@
-# Simulador de Partículas
+<div align="right">🇧🇷 <a href="README_pt-br.md">Ler em Português</a></div>
 
-Uma engine com algumas migalhas de física e muitas otimizações. Feito para fins didáticos e procrastinatórios em C/C++ & SFML.
+An engine with some physics and a lot of optimizations. Made for educational and procrastinatory purposes in C++ & SFML.
 
+<p align="center">
+  <img src="gifs/v09.gif" alt="Demonstration of the Final Version" width="650"/>
+</p>
 
-<br>
+## Verlet Integration
 
-<img src="gifs/v09.gif" alt="Demonstração da Versão Final" width="650"/>
+This program uses Verlet integration for motion calculations. Unlike the Euler method (used in early versions), the Verlet method prevents particles from tunneling through each other at high speeds or when the FPS drops significantly. The system also simulates energy loss in collisions, preventing them from bouncing around ad infinitum.
 
-<br>
+## Main Optimizations
 
+-   Spatial Grid
+-   Object Pooling
+-   Structure of Arrays (SoA)
 
-## Como funciona a física? (Integração Verlet)
-
-O programa usa integração de Verlet para os cálculos de movimento. Diferente do método Euler (usado nas versões iniciais), o método Verlet evita que as partículas atravessem umas às outras quando estão em alta velocidade, ou quando o FPS cai muito. O sistema também simula perda de energia nas colisões, e evita que elas fiquem ricocheteando ad infinitum.
-
-
-## Controles
+## Controls
 
 **Mouse:**
-- Botão esquerdo: cria partícula normal
-- Botão direito: cria partícula grande
+- Left-click: creates a normal particle
+- Right-click: creates a large particle
 
-**Teclado:**
-- `G`: liga/desliga gravidade
-- `R`: liga/desliga repulsão
-- `M`: liga/desliga força do mouse
-- `N`: alterna entre atrair e repelir
-- `F`: Troca o estilo de força do mouse
-- `+/-`: ajusta intensidade da força
-- `C`: limpa todas as partículas
-- `Espaço`: cria partículas aleatórias
+**Keyboard:**
+- `G`: toggles gravity
+- `R`: toggles repulsion
+- `M`: toggles mouse force
+- `N`: switches between attract and repel
+- `F`: changes the mouse force style
+- `+/-`: adjusts force intensity
+- `C`: clears all particles
+- `Space`: creates random particles
 - `ESC`: bye
 
 
+## How to Compile
+
 ### Windows
+Run the file:
 ```
 compile.bat
 ```
-> **Nota:** É necessário ter o [MSYS2](https://www.msys2.org/) com as ferramentas MinGW (g++, make, cmake) e SFML instalados e no PATH do sistema.
+> You need to have [MSYS2](https://www.msys2.org/) with MinGW tools (g++, make, cmake) and SFML installed and in the system's PATH.
 
 ### Linux
 ```sh
@@ -51,22 +55,21 @@ make
 ./Chaos
 ```
 
-Apesasar de otimizado, o desempenho pode variar com muitas partículas/interações. Use por sua conta e risco.
+Despite being optimized, performance may vary with many particles/interactions. Use at your own risk.
 
-(~Na minha máquina funciona~)
+(~Works on my machine~)
 
-<details>
-<summary>Versões Anteriores</summary>
+### Previous Versions
 
-#### v0.5
-<img src="gifs/gifrec.gif" alt="Demonstração da Versão 0.5" width="650"/>
-
-#### v0.1
-<img src="gifs/v01.gif" alt="Demonstração da Versão 0.1" width="650"/>
-
-</details>
+<p align="center">
+  <b>v0.5</b><br>
+  <img src="gifs/gifrec.gif" alt="Demonstration of Version 0.5" width="580"/>
+</p>
+<p align="center">
+  <b>v0.1</b><br>
+  <img src="gifs/v01.gif" alt="Demonstration of Version 0.1" width="580"/>
+</p>
 
 <div align="right">
-  <sub><a href="https://github.com/augustoperin">Augusto Cesar Perin</a> | 2018-2019</sub>
-</div>
-
+  <sub><a href="https://github.com/augustocesarperin">Augusto Cesar Perin</a> | 2018-2019</sub>
+</div> 
